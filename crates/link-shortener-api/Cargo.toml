@@ -1,0 +1,26 @@
+[package]
+name = "link-shortener-api"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow = "1.0.102"
+axum = { version = "0.8.8", features = ["macros"] }
+axum-oidc = { git = "https://codeberg.org/anish/axum-oidc", rev = "c8512b41557f902e061110e4068ec78a564eca80" }
+base64 = "0.22.1"
+chrono = "0.4.44"
+entity = { version = "0.1.0", path = "../entity" }
+link-shortener-store = { version = "0.1.0", path = "../link-shortener-store" }
+rand = "0.10.0"
+sea-orm = "1.1.19"
+serde_json = "1.0.145"
+serde = { version = "1.0.228", features = ["derive"] }
+tower = "0.5.3"
+tower-http = { version = "0.6.8", features = ["fs", "trace"] }
+tower-sessions = "0.15.0"
+tracing = "0.1.44"
+utoipa = { version = "5.4.0", features = ["axum_extras"] }
+utoipa-axum = "0.2.0"
+utoipa-swagger-ui = { version = "9.0.2", features = ["axum", "vendored"] }
+uuid = { version = "1.23.0", features = ["v4", "v7", "serde"] }

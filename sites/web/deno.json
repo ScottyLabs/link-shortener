@@ -1,0 +1,10 @@
+{
+  "nodeModulesDir": "auto",
+  "tasks": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check": "svelte-check --tsconfig ./tsconfig.app.json",
+    "generate-api": "openapi-typescript http://localhost:3000/openapi.json -o src/lib/api/schema.d.ts"
+  }
+}
