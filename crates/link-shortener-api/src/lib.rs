@@ -144,7 +144,7 @@ pub async fn router(store: Arc<Store>, oidc_config: OidcConfig) -> anyhow::Resul
 
     // Router
     let (router, api) = OpenApiRouter::with_openapi(ApiDoc::openapi())
-        .route("/auth/login", get(login))
+        .routes(utoipa_axum::routes!(login))
         .layer(login_layer)
         // API routes guarded by the CurrentUser extractor
         .routes(utoipa_axum::routes!(links::list_links))
@@ -157,7 +157,7 @@ pub async fn router(store: Arc<Store>, oidc_config: OidcConfig) -> anyhow::Resul
             "/auth/callback",
             get(handle_oidc_redirect::<EmptyAdditionalClaims, SessionWrapper>),
         )
-        .route("/auth/logout", get(logout))
+        .routes(utoipa_axum::routes!(logout))
         .layer(auth_layer)
         .layer(session_layer)
         .layer(TraceLayer::new_for_http())
@@ -195,11 +195,13 @@ async fn health() -> &'static str {
 }
 
 /// Login entry point that runs OIDC then returns to the app root
+#[utoipa::path(get, path = "/auth/login", tag = "auth", responses((status = SEE_OTHER)))]
 async fn login() -> Redirect {
     Redirect::to("/")
 }
 
 /// Clears the session and returns to the app root
+#[utoipa::path(get, path = "/auth/logout", tag = "auth", responses((status = SEE_OTHER)))]
 async fn logout(session: Session) -> Redirect {
     let _ = session.flush().await;
     Redirect::to("/")
