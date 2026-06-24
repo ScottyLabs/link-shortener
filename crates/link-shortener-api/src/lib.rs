@@ -144,19 +144,20 @@ pub async fn router(store: Arc<Store>, oidc_config: OidcConfig) -> anyhow::Resul
 
     // Router
     let (router, api) = OpenApiRouter::with_openapi(ApiDoc::openapi())
-        // Protected routes
+        .route("/auth/login", get(login))
+        .layer(login_layer)
+        // API routes guarded by the CurrentUser extractor
         .routes(utoipa_axum::routes!(links::list_links))
         .routes(utoipa_axum::routes!(links::create_link))
         .routes(utoipa_axum::routes!(links::update_link))
         .routes(utoipa_axum::routes!(links::delete_link))
         .routes(utoipa_axum::routes!(auth::me))
-        .layer(login_layer)
-        // Public routes
         .routes(utoipa_axum::routes!(health))
         .route(
             "/auth/callback",
             get(handle_oidc_redirect::<EmptyAdditionalClaims, SessionWrapper>),
         )
+        .route("/auth/logout", get(logout))
         .layer(auth_layer)
         .layer(session_layer)
         .layer(TraceLayer::new_for_http())
@@ -191,4 +192,15 @@ pub async fn router(store: Arc<Store>, oidc_config: OidcConfig) -> anyhow::Resul
 #[utoipa::path(get, path = "/api/health", tag = "health", responses((status = OK, body = str)))]
 async fn health() -> &'static str {
     "OK"
+}
+
+/// Login entry point that runs OIDC then returns to the app root
+async fn login() -> Redirect {
+    Redirect::to("/")
+}
+
+/// Clears the session and returns to the app root
+async fn logout(session: Session) -> Redirect {
+    let _ = session.flush().await;
+    Redirect::to("/")
 }

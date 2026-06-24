@@ -46,6 +46,6 @@
         {submitting ? "Creating..." : "Create"}
     </button>
     {#if error}
-        <p class="error">{error}</p>
+        <p>{error}</p>
     {/if}
 </form>

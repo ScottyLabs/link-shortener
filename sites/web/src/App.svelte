@@ -32,6 +32,6 @@
         <CreateLink onCreated={() => location.reload()} />
         <LinkList />
     {:else}
-        <a href="/api/me">Log in with ScottyLabs</a>
+        <a href="/auth/login">Log in with ScottyLabs</a>
     {/if}
 </main>
