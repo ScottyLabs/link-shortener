@@ -18,6 +18,7 @@ async fn duplicate_slug_yields_slug_conflict() {
              slug text NOT NULL UNIQUE,
              target_url text NOT NULL,
              owner_id text NOT NULL,
+             owner_name text,
              created_at timestamp NOT NULL DEFAULT now(),
              updated_at timestamp NOT NULL DEFAULT now()
          )",

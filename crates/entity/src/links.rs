@@ -16,6 +16,8 @@ pub struct Model {
     pub target_url: String,
     #[sea_orm(column_type = "Text")]
     pub owner_id: String,
+    #[sea_orm(column_type = "Text", nullable)]
+    pub owner_name: Option<String>,
     pub created_at: DateTime,
     pub updated_at: DateTime,
 }

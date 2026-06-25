@@ -32,6 +32,13 @@ impl<'a> LinkRepository<'a> {
             .await?)
     }
 
+    pub async fn list_all(&self) -> crate::Result<Vec<links::Model>> {
+        Ok(Links::find()
+            .order_by_desc(links::Column::CreatedAt)
+            .all(self.db)
+            .await?)
+    }
+
     pub async fn create(&self, link: links::ActiveModel) -> crate::Result<links::Model> {
         let slug = active_slug(&link);
 

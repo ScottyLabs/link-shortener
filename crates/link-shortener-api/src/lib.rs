@@ -4,9 +4,10 @@ mod links;
 mod redirect;
 
 pub use auth::OidcConfig;
+use auth::{AuthConfig, GroupClaims};
 
 use axum::{
-    Router,
+    Extension, Router,
     error_handling::HandleErrorLayer,
     extract::{FromRequestParts, Request, State},
     http::request::Parts,
@@ -14,8 +15,7 @@ use axum::{
     routing::get,
 };
 use axum_oidc::{
-    AdditionalClaims, EmptyAdditionalClaims, OidcAuthLayer, OidcClient, OidcLoginLayer,
-    OidcSession,
+    AdditionalClaims, OidcAuthLayer, OidcClient, OidcLoginLayer, OidcSession,
     error::MiddlewareError,
     handle_oidc_redirect,
     openidconnect::{ClientId, ClientSecret, CsrfToken, IssuerUrl, Scope, core::CoreGenderClaim},
@@ -103,7 +103,7 @@ pub async fn router(store: Arc<Store>, oidc_config: OidcConfig) -> anyhow::Resul
     .expect("valid issuer URL");
 
     let app_url = oidc_config.app_url.clone();
-    let oidc_client = OidcClient::<EmptyAdditionalClaims>::builder()
+    let oidc_client = OidcClient::<GroupClaims>::builder()
         .with_default_http_client()
         .with_redirect_url(
             axum::http::Uri::try_from(oidc_config.oauth_relay_url.clone())
@@ -131,16 +131,21 @@ pub async fn router(store: Arc<Store>, oidc_config: OidcConfig) -> anyhow::Resul
             tracing::error!("OIDC login error: {:?}", e);
             e.into_response()
         }))
-        .layer(OidcLoginLayer::<EmptyAdditionalClaims, SessionWrapper>::new());
+        .layer(OidcLoginLayer::<GroupClaims, SessionWrapper>::new());
 
     let auth_layer = ServiceBuilder::new()
         .layer(HandleErrorLayer::new(|e: MiddlewareError| async move {
             tracing::error!("OIDC auth error: {:?}", e);
             e.into_response()
         }))
-        .layer(OidcAuthLayer::<EmptyAdditionalClaims, SessionWrapper>::new(
+        .layer(OidcAuthLayer::<GroupClaims, SessionWrapper>::new(
             oidc_client,
         ));
+
+    let auth_config = Arc::new(AuthConfig {
+        project_group: oidc_config.project_group,
+        project_admin_group: oidc_config.project_admin_group,
+    });
 
     // Router
     let (router, api) = OpenApiRouter::with_openapi(ApiDoc::openapi())
@@ -155,12 +160,13 @@ pub async fn router(store: Arc<Store>, oidc_config: OidcConfig) -> anyhow::Resul
         .routes(utoipa_axum::routes!(health))
         .route(
             "/auth/callback",
-            get(handle_oidc_redirect::<EmptyAdditionalClaims, SessionWrapper>),
+            get(handle_oidc_redirect::<GroupClaims, SessionWrapper>),
         )
         .routes(utoipa_axum::routes!(logout))
         .layer(auth_layer)
         .layer(session_layer)
         .layer(TraceLayer::new_for_http())
+        .layer(Extension(auth_config))
         .with_state(store.clone())
         .split_for_parts();
 

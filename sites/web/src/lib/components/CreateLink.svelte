@@ -1,4 +1,6 @@
 <script lang="ts">
+    import { api } from "../api/client";
+
     let { onCreated }: { onCreated: () => void } = $props();
 
     let targetUrl = $state("");
@@ -10,17 +12,11 @@
         error = null;
         submitting = true;
         try {
-            const res = await fetch("/api/links", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    target_url: targetUrl,
-                    slug: slug || undefined,
-                }),
+            const { data, error: err } = await api.POST("/api/links", {
+                body: { target_url: targetUrl, slug: slug || undefined },
             });
-            if (!res.ok) {
-                const body = await res.json();
-                error = body.error ?? "Failed to create link";
+            if (!data) {
+                error = (err as { error?: string })?.error ?? "Failed to create link";
                 return;
             }
             targetUrl = "";

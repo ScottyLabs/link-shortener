@@ -29,6 +29,9 @@ async fn main() -> Result<()> {
             .context("OIDC_CLIENT_SECRET must be set")?,
         app_url: std::env::var("APP_URL").context("APP_URL must be set")?,
         oauth_relay_url: std::env::var("OAUTH_RELAY_URL").context("OAUTH_RELAY_URL must be set")?,
+        project_group: std::env::var("PROJECT_GROUP").context("PROJECT_GROUP must be set")?,
+        project_admin_group: std::env::var("PROJECT_ADMIN_GROUP")
+            .context("PROJECT_ADMIN_GROUP must be set")?,
     };
 
     let db = Database::connect(&database_url).await?;
