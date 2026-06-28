@@ -32,7 +32,7 @@ use tower_sessions::{
 };
 use utoipa::OpenApi;
 use utoipa_axum::router::OpenApiRouter;
-use utoipa_swagger_ui::SwaggerUi;
+use utoipa_scalar::{Scalar, Servable};
 
 /// Bridges tower-sessions to the axum-oidc session storage contract
 struct SessionWrapper(Session);
@@ -170,7 +170,15 @@ pub async fn router(store: Arc<Store>, oidc_config: OidcConfig) -> anyhow::Resul
         .with_state(store.clone())
         .split_for_parts();
 
-    let router = router.merge(SwaggerUi::new("/swagger-ui").url("/openapi.json", api));
+    let router = router
+        .merge(Scalar::with_url("/api/scalar", api.clone()))
+        .route(
+            "/api/openapi.json",
+            get(move || {
+                let api = api.clone();
+                async move { axum::Json(api) }
+            }),
+        );
 
     // Serve the built SPA in prod when STATIC_DIR is set, falling back to slug redirects
     let app = match std::env::var("STATIC_DIR") {

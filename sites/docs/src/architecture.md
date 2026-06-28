@@ -26,7 +26,7 @@ Logging out is a `GET /auth/logout` that clears the session and redirects to the
 
 ## API design
 
-Routes are registered with `utoipa-axum` for automatic OpenAPI schema generation. The schema is served at `/openapi.json` and is browsable at `/swagger-ui`.
+Routes are registered with `utoipa-axum` for automatic OpenAPI schema generation. The schema is served at `/api/openapi.json` and is browsable via Scalar at `/api/scalar`.
 
 API routes require a valid session. The `CurrentUser` extractor returns `401` when the session is missing, so the SPA can detect auth state over XHR without being redirected:
 
@@ -53,6 +53,6 @@ In production the backend serves the built SPA itself. When `STATIC_DIR` is set,
 
 ## Frontend
 
-The frontend is built with Svelte 5 and Vite on the Deno toolchain. Auth state is determined by calling `/api/me` on mount. The Vite dev server proxies `/api`, `/auth`, `/swagger-ui`, and `/openapi.json` to the backend on port 3000.
+The frontend is built with Svelte 5 and Vite on the Deno toolchain. Auth state is determined by calling `/api/me` on mount. The Vite dev server proxies `/api` and `/auth` to the backend on port 3000.
 
 Once the backend is running, `deno task generate-api` generates TypeScript types from the OpenAPI schema via `openapi-typescript`. The `openapi-fetch` library provides a typed client for making API calls.

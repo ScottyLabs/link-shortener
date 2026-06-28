@@ -7,8 +7,6 @@ export default defineConfig({
     proxy: {
       "/api": "http://localhost:3000",
       "/auth": "http://localhost:3000",
-      "/openapi.json": "http://localhost:3000",
-      "/swagger-ui": "http://localhost:3000",
     },
   },
 });
