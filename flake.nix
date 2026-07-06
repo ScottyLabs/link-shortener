@@ -10,7 +10,6 @@
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
-    devenv.url = "github:cachix/devenv";
     scottylabs = {
       url = "git+https://codeberg.org/ScottyLabs/devenv";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -19,7 +18,6 @@
 
   outputs =
     { nixpkgs
-    , devenv
     , scottylabs
     , ...
     }:
@@ -51,7 +49,10 @@
             src = ./.;
             pname = "link-shortener";
             version = "0.1.0";
-            nativeBuildInputs = [ pkgs.pkg-config pkgs.makeWrapper ];
+            nativeBuildInputs = [
+              pkgs.pkg-config
+              pkgs.makeWrapper
+            ];
             buildInputs = [ pkgs.openssl ];
             # Bake the SPA into the binary so the service serves it
             buildArgs.postInstall = ''
@@ -61,8 +62,6 @@
         in
         {
           inherit link-shortener web docs;
-          default = link-shortener;
-          devenv = devenv.packages.${system}.devenv;
         }
       );
     };
