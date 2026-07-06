@@ -33,19 +33,20 @@
         system:
         let
           pkgs = nixpkgs.legacyPackages.${system};
+          helpers = scottylabs.mkLib pkgs;
 
-          web = (scottylabs.mkLib pkgs).buildDenoTask {
+          web = helpers.buildDenoTask {
             src = ./sites/web;
             pname = "link-shortener-web";
             version = "0.1.0";
           };
 
-          docs = (scottylabs.mkLib pkgs).buildMdbook {
+          docs = helpers.buildMdbook {
             src = ./sites/docs;
             name = "link-shortener-docs";
           };
 
-          link-shortener = (scottylabs.mkLib pkgs).buildRustService {
+          link-shortener = helpers.buildRustService {
             src = ./.;
             pname = "link-shortener";
             version = "0.1.0";
