@@ -24,3 +24,4 @@ utoipa = { version = "5.4.0", features = ["axum_extras"] }
 utoipa-axum = "0.2.0"
 utoipa-scalar = { version = "0.3.0", features = ["axum"] }
 uuid = { version = "1.23.0", features = ["v4", "v7", "serde"] }
+url = "2.5.8"

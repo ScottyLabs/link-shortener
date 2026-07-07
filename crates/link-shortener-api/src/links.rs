@@ -10,6 +10,7 @@ use rand::RngExt;
 use sea_orm::ActiveValue;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use url::Url;
 use uuid::Uuid;
 
 #[derive(Deserialize, utoipa::ToSchema)]
@@ -60,6 +61,11 @@ fn generate_slug() -> String {
         .collect()
 }
 
+/// Reject targets that are not absolute http or https URLs
+fn is_http_url(value: &str) -> bool {
+    Url::parse(value).is_ok_and(|url| matches!(url.scheme(), "http" | "https") && url.has_host())
+}
+
 #[utoipa::path(
     get,
     path = "/api/links",
@@ -94,6 +100,12 @@ pub async fn create_link(
 ) -> Result<(axum::http::StatusCode, Json<LinkResponse>), ApiError> {
     if !user.can_create(&auth) {
         return Err(ApiError::Forbidden);
+    }
+
+    if !is_http_url(&body.target_url) {
+        return Err(ApiError::BadRequest(
+            "target_url must be an http or https URL".into(),
+        ));
     }
 
     let slug = body.slug.unwrap_or_else(generate_slug);
@@ -144,6 +156,11 @@ pub async fn update_link(
         active.slug = ActiveValue::Set(slug);
     }
     if let Some(target_url) = body.target_url {
+        if !is_http_url(&target_url) {
+            return Err(ApiError::BadRequest(
+                "target_url must be an http or https URL".into(),
+            ));
+        }
         active.target_url = ActiveValue::Set(target_url);
     }
 
