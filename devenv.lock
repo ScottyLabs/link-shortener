@@ -91,11 +91,11 @@
     "devenv": {
       "locked": {
         "dir": "src/modules",
-        "lastModified": 1783366835,
-        "narHash": "sha256-IUb0PtXAXnzBl3mJMPykN3L9LYUzh48GDL6Em3t4hRI=",
+        "lastModified": 1783461239,
+        "narHash": "sha256-O+rwg3jreOAOrYd0YrNoOsRu+8is6TCPCIBN3qJTJpM=",
         "owner": "cachix",
         "repo": "devenv",
-        "rev": "9506a0b7b91b9c5087b0b28f48c7a47a3f2b07d9",
+        "rev": "6222c499fe28b87665af2bb6c626da64179cee00",
         "type": "github"
       },
       "original": {
@@ -564,7 +564,7 @@
         "nixpkgs": "nixpkgs",
         "rust-overlay": "rust-overlay",
         "scottylabs": "scottylabs",
-        "treefmt-nix": "treefmt-nix_2"
+        "treefmt-nix": "treefmt-nix_3"
       }
     },
     "rust-overlay": {
@@ -574,11 +574,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1783320166,
-        "narHash": "sha256-l7C/OsjcnWDOk2K3ssj+SBduwL67LashjBqis9+t468=",
+        "lastModified": 1783404876,
+        "narHash": "sha256-DAh1CfiRVwr8Szkj5PiHmsqh10NHPb8SKPx7w/B+l9E=",
         "owner": "oxalica",
         "repo": "rust-overlay",
-        "rev": "20ee15370c9256669d66968b89ee20a4b0a4e673",
+        "rev": "3c161f20193bd91a73913b417e5b06d41860336d",
         "type": "github"
       },
       "original": {
@@ -617,14 +617,15 @@
         "pyproject-build-systems": "pyproject-build-systems",
         "pyproject-nix": "pyproject-nix",
         "ricochet": "ricochet",
+        "treefmt-nix": "treefmt-nix_2",
         "uv2nix": "uv2nix"
       },
       "locked": {
-        "lastModified": 1783363692,
-        "narHash": "sha256-nmlvRcOf/FlbzYz/JtAllG5WZJXnkkqEXW6GNQVDSeo=",
+        "lastModified": 1783392061,
+        "narHash": "sha256-mCj8vgbcodZIs3soIfpyDFY40qJ9EmSjEQ3wB3naSJQ=",
         "ref": "refs/heads/main",
-        "rev": "7691402d63e899033fe01779aa1f2ffba6d10e7c",
-        "revCount": 60,
+        "rev": "cefa72e82b581f6aa89203275b18b749b9210f7a",
+        "revCount": 62,
         "type": "git",
         "url": "https://codeberg.org/ScottyLabs/devenv"
       },
@@ -658,6 +659,27 @@
       }
     },
     "treefmt-nix_2": {
+      "inputs": {
+        "nixpkgs": [
+          "scottylabs",
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1780220602,
+        "narHash": "sha256-eynAfOmbmxJnkp7YewvCEbShNnnYJ9gLLqkzsYtBPeM=",
+        "owner": "numtide",
+        "repo": "treefmt-nix",
+        "rev": "db947814a175b7ca6ded66e21383d938df01c227",
+        "type": "github"
+      },
+      "original": {
+        "owner": "numtide",
+        "repo": "treefmt-nix",
+        "type": "github"
+      }
+    },
+    "treefmt-nix_3": {
       "inputs": {
         "nixpkgs": "nixpkgs_4"
       },
