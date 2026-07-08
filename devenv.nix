@@ -13,6 +13,7 @@
     deno = {
       enable = true;
       svelte.enable = true;
+      svelte.dir = "sites/web";
     };
     postgres.enable = true;
     secrets.enable = true;

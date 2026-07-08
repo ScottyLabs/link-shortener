@@ -39,6 +39,7 @@
             src = ./sites/web;
             pname = "link-shortener-web";
             version = "0.1.0";
+            output = "build";
           };
 
           docs = helpers.buildMdbook {

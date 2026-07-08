@@ -19,7 +19,8 @@ result-*
 
 # JS / deno
 node_modules/
-sites/web/dist/
+sites/web/.svelte-kit/
+sites/web/build/
 
 # Secrets
 .env

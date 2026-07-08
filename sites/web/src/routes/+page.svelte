@@ -1,8 +1,8 @@
 <script lang="ts">
-    import { api } from "./lib/api/client";
-    import type { components } from "./lib/api/schema";
-    import CreateLink from "./lib/components/CreateLink.svelte";
-    import LinkList from "./lib/components/LinkList.svelte";
+    import { api } from "$lib/api/client";
+    import type { components } from "$lib/api/schema";
+    import CreateLink from "$lib/components/CreateLink.svelte";
+    import LinkList from "$lib/components/LinkList.svelte";
 
     type UserInfo = components["schemas"]["UserInfo"];
 
