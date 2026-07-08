@@ -53,6 +53,6 @@ In production the backend serves the built SPA itself. When `STATIC_DIR` is set,
 
 ## Frontend
 
-The frontend is built with Svelte 5 and Vite on the Deno toolchain. Auth state is determined by calling `/api/me` on mount. The Vite dev server proxies `/api` and `/auth` to the backend on port 3000.
+The frontend is a SvelteKit app on Svelte 5, built with the static adapter as a client-rendered SPA on the Deno toolchain. Auth state is determined by calling `/api/me` on mount. The Vite dev server proxies `/api` and `/auth` to the backend on port 3000.
 
 Once the backend is running, `deno task generate-api` generates TypeScript types from the OpenAPI schema via `openapi-typescript`. The `openapi-fetch` library provides a typed client for making API calls.
