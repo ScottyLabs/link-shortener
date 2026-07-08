@@ -574,11 +574,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1783404876,
-        "narHash": "sha256-DAh1CfiRVwr8Szkj5PiHmsqh10NHPb8SKPx7w/B+l9E=",
+        "lastModified": 1783488441,
+        "narHash": "sha256-jmWf+H3iC/0z7/mmvTovaJx1E/LME1QyHkyk+AFfJPk=",
         "owner": "oxalica",
         "repo": "rust-overlay",
-        "rev": "3c161f20193bd91a73913b417e5b06d41860336d",
+        "rev": "7dc3a177a239ed879c5581a80f6dc246c7e102f1",
         "type": "github"
       },
       "original": {
@@ -621,11 +621,11 @@
         "uv2nix": "uv2nix"
       },
       "locked": {
-        "lastModified": 1783466593,
-        "narHash": "sha256-gnkBPfdlP+TuCbRKlS7IzZxSjhVNCaa+bM6h4LWibMI=",
+        "lastModified": 1783490928,
+        "narHash": "sha256-X1NOiUojPEqfOnHmyAPP6ZK+ZANpvqbkUViHzh18CBQ=",
         "ref": "refs/heads/main",
-        "rev": "1897b58f21657ea08ecc443d462d5585e0318b56",
-        "revCount": 63,
+        "rev": "fe0dbfb2d3262e586c27cd082396cfe7fb07e179",
+        "revCount": 65,
         "type": "git",
         "url": "https://codeberg.org/ScottyLabs/devenv"
       },

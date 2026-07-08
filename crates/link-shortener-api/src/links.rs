@@ -66,6 +66,11 @@ fn is_http_url(value: &str) -> bool {
     Url::parse(value).is_ok_and(|url| matches!(url.scheme(), "http" | "https") && url.has_host())
 }
 
+/// A slug must be a single non-empty path segment to be resolvable
+fn is_valid_slug(slug: &str) -> bool {
+    !slug.is_empty() && !slug.contains('/')
+}
+
 #[utoipa::path(
     get,
     path = "/api/links",
@@ -108,7 +113,17 @@ pub async fn create_link(
         ));
     }
 
-    let slug = body.slug.unwrap_or_else(generate_slug);
+    let slug = match body.slug {
+        Some(slug) => {
+            if !is_valid_slug(&slug) {
+                return Err(ApiError::BadRequest(
+                    "slug must be non-empty and contain no slashes".into(),
+                ));
+            }
+            slug
+        }
+        None => generate_slug(),
+    };
 
     let link = links::ActiveModel {
         slug: ActiveValue::Set(slug),
@@ -153,6 +168,11 @@ pub async fn update_link(
     let mut active: links::ActiveModel = existing.into();
 
     if let Some(slug) = body.slug {
+        if !is_valid_slug(&slug) {
+            return Err(ApiError::BadRequest(
+                "slug must be non-empty and contain no slashes".into(),
+            ));
+        }
         active.slug = ActiveValue::Set(slug);
     }
     if let Some(target_url) = body.target_url {
