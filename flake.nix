@@ -17,9 +17,10 @@
   };
 
   outputs =
-    { nixpkgs
-    , scottylabs
-    , ...
+    {
+      nixpkgs,
+      scottylabs,
+      ...
     }:
     let
       systems = [
