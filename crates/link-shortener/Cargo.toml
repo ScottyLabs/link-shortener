@@ -19,3 +19,7 @@ serde = { version = "1.0.228", features = ["derive"] }
 tokio = { version = "1.50.0", features = ["full"] }
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
+
+# machete does not detect uses inside the declare_secrets! macro expansion
+[package.metadata.cargo-machete]
+ignored = ["secrecy", "serde"]
