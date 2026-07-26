@@ -4,14 +4,13 @@
 
 - [Nix](https://nixos.org/download/) with flakes enabled
 - [devenv](https://devenv.sh/getting-started/)
-- [direnv](https://direnv.net/)
 
 ## Getting started
 
 Log in to OpenBao once per machine. The shell resolves secrets as it loads and will not activate without a token, so run this on a fresh checkout before entering the shell for the first time:
 
 ```bash
-nix run git+https://codeberg.org/ScottyLabs/devenv#login
+nix run git+https://codeberg.org/ScottyLabs/kennel#login
 ```
 
 The token renews on each shell entry, so you only repeat this on a new machine.
