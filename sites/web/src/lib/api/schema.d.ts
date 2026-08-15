@@ -107,6 +107,7 @@ export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
     CreateLinkRequest: {
+      rules?: components["schemas"]["RuleInput"][];
       slug?: string | null;
       target_url: string;
     };
@@ -116,12 +117,28 @@ export interface components {
       /** Format: uuid */
       id: string;
       owner_name?: string | null;
+      rules: components["schemas"]["RuleResponse"][];
       slug: string;
       target_url: string;
       /** Format: date-time */
       updated_at: string;
     };
+    /** @enum {string} */
+    MatchKind: "platform" | "regex";
+    RuleInput: {
+      kind: components["schemas"]["MatchKind"];
+      pattern: string;
+      target_url: string;
+    };
+    RuleResponse: {
+      /** Format: uuid */
+      id: string;
+      kind: components["schemas"]["MatchKind"];
+      pattern: string;
+      target_url: string;
+    };
     UpdateLinkRequest: {
+      rules?: components["schemas"]["RuleInput"][] | null;
       slug?: string | null;
       target_url?: string | null;
     };

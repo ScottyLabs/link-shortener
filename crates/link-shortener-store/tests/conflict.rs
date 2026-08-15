@@ -1,6 +1,8 @@
+mod common;
+
 use entity::links;
 use link_shortener_store::{Store, StoreError};
-use sea_orm::{ActiveValue::Set, ConnectionTrait, Database};
+use sea_orm::ActiveValue::Set;
 use uuid::Uuid;
 
 // exercises the real postgres unique index through store.create and store.update
@@ -8,23 +10,7 @@ use uuid::Uuid;
 #[tokio::test]
 #[ignore = "requires a postgres DATABASE_URL with pg_uuidv7"]
 async fn duplicate_slug_yields_slug_conflict() {
-    let url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-    let db = Database::connect(&url).await.expect("connect");
-
-    db.execute_unprepared(
-        "CREATE EXTENSION IF NOT EXISTS pg_uuidv7;
-         CREATE TABLE IF NOT EXISTS links (
-             id uuid PRIMARY KEY DEFAULT uuid_generate_v7(),
-             slug text NOT NULL UNIQUE,
-             target_url text NOT NULL,
-             owner_id text NOT NULL,
-             owner_name text,
-             created_at timestamp NOT NULL DEFAULT now(),
-             updated_at timestamp NOT NULL DEFAULT now()
-         )",
-    )
-    .await
-    .expect("create schema");
+    let db = common::connect().await;
 
     let store = Store::new(db);
     let taken = format!("taken-{}", Uuid::now_v7());
@@ -37,15 +23,15 @@ async fn duplicate_slug_yields_slug_conflict() {
     };
 
     // create path: inserting the same slug twice conflicts
-    let created = store
+    let (created, _) = store
         .links()
-        .create(active(&taken))
+        .create(active(&taken), vec![])
         .await
         .expect("first insert");
     assert_eq!(created.slug, taken);
     let err = store
         .links()
-        .create(active(&taken))
+        .create(active(&taken), vec![])
         .await
         .expect_err("duplicate create must conflict");
     assert!(
@@ -54,16 +40,16 @@ async fn duplicate_slug_yields_slug_conflict() {
     );
 
     // update path: renaming a link onto a taken slug conflicts
-    let other = store
+    let (other, _) = store
         .links()
-        .create(active(&format!("other-{}", Uuid::now_v7())))
+        .create(active(&format!("other-{}", Uuid::now_v7())), vec![])
         .await
         .expect("second insert");
     let mut rename: links::ActiveModel = other.into();
     rename.slug = Set(taken.clone());
     let err = store
         .links()
-        .update(rename)
+        .update(rename, None)
         .await
         .expect_err("duplicate update must conflict");
     assert!(
@@ -72,17 +58,17 @@ async fn duplicate_slug_yields_slug_conflict() {
     );
 
     // a non-colliding rename still succeeds
-    let third = store
+    let (third, _) = store
         .links()
-        .create(active(&format!("third-{}", Uuid::now_v7())))
+        .create(active(&format!("third-{}", Uuid::now_v7())), vec![])
         .await
         .expect("third insert");
     let fresh = format!("fresh-{}", Uuid::now_v7());
     let mut ok_rename: links::ActiveModel = third.into();
     ok_rename.slug = Set(fresh.clone());
-    let updated = store
+    let (updated, _) = store
         .links()
-        .update(ok_rename)
+        .update(ok_rename, None)
         .await
         .expect("non-colliding update");
     assert_eq!(updated.slug, fresh);

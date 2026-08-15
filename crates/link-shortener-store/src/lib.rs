@@ -2,6 +2,7 @@ pub mod error;
 pub mod links;
 
 pub use error::{Result, StoreError};
+pub use links::LinkWithRules;
 
 use sea_orm::DatabaseConnection;
 

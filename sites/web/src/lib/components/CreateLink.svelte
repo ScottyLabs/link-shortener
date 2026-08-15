@@ -1,10 +1,15 @@
 <script lang="ts">
     import { api } from "../api/client";
+    import type { components } from "../api/schema";
+    import RuleEditor from "./RuleEditor.svelte";
+
+    type Rule = components["schemas"]["RuleInput"];
 
     let { onCreated }: { onCreated: () => void } = $props();
 
     let targetUrl = $state("");
     let slug = $state("");
+    let rules: Rule[] = $state([]);
     let error: string | null = $state(null);
     let submitting = $state(false);
 
@@ -13,7 +18,7 @@
         submitting = true;
         try {
             const { data, error: err } = await api.POST("/api/links", {
-                body: { target_url: targetUrl, slug: slug || undefined },
+                body: { target_url: targetUrl, slug: slug || undefined, rules },
             });
             if (!data) {
                 error = (err as { error?: string })?.error ?? "Failed to create link";
@@ -21,6 +26,7 @@
             }
             targetUrl = "";
             slug = "";
+            rules = [];
             onCreated();
         } finally {
             submitting = false;
@@ -38,6 +44,7 @@
         Custom slug (optional)
         <input type="text" bind:value={slug} placeholder="my-link" />
     </label>
+    <RuleEditor bind:rules />
     <button type="submit" disabled={submitting}>
         {submitting ? "Creating..." : "Create"}
     </button>

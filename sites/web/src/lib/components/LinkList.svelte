@@ -1,8 +1,10 @@
 <script lang="ts">
     import { api } from "../api/client";
     import type { components } from "../api/schema";
+    import RuleEditor from "./RuleEditor.svelte";
 
     type Link = components["schemas"]["LinkResponse"];
+    type Rule = components["schemas"]["RuleInput"];
 
     let {
         isAdmin = false,
@@ -14,6 +16,7 @@
     let editingId: string | null = $state(null);
     let editSlug = $state("");
     let editTarget = $state("");
+    let editRules: Rule[] = $state([]);
     let editError: string | null = $state(null);
 
     async function fetchLinks() {
@@ -32,6 +35,11 @@
         editingId = link.id;
         editSlug = link.slug;
         editTarget = link.target_url;
+        editRules = link.rules.map(({ kind, pattern, target_url }) => ({
+            kind,
+            pattern,
+            target_url,
+        }));
         editError = null;
     }
 
@@ -44,7 +52,7 @@
         editError = null;
         const { data, error } = await api.PATCH("/api/links/{id}", {
             params: { path: { id } },
-            body: { slug: editSlug, target_url: editTarget },
+            body: { slug: editSlug, target_url: editTarget, rules: editRules },
         });
         if (!data) {
             editError = (error as { error?: string })?.error ?? "Failed to update link";
@@ -88,6 +96,7 @@
                             bind:value={editTarget}
                             placeholder="https://example.com"
                         />
+                        <RuleEditor bind:rules={editRules} />
                         <button onclick={() => saveEdit(link.id)}>Save</button>
                         <button onclick={cancelEdit}>Cancel</button>
                         {#if editError}
@@ -99,6 +108,13 @@
                         <span>created {formatDate(link.created_at)}</span>
                         {#if isAdmin && link.owner_name}
                             <span>by {link.owner_name}</span>
+                        {/if}
+                        {#if link.rules.length > 0}
+                            <ul>
+                                {#each link.rules as rule (rule.id)}
+                                    <li>{rule.kind} {rule.pattern} -&gt; {rule.target_url}</li>
+                                {/each}
+                            </ul>
                         {/if}
                         {#if canModify}
                             <button onclick={() => startEdit(link)}>Edit</button>

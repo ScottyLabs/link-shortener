@@ -2,6 +2,7 @@ mod auth;
 mod error;
 mod links;
 mod redirect;
+mod rules;
 
 pub use auth::OidcConfig;
 use auth::{AuthConfig, GroupClaims};
@@ -189,8 +190,11 @@ pub async fn router(store: Arc<Store>, oidc_config: OidcConfig) -> anyhow::Resul
                     let serve_dir = serve_dir.clone();
                     async move {
                         let path = req.uri().path().to_owned();
-                        if let Some(target) = redirect::slug_target(&store, &path).await {
-                            return Redirect::temporary(&target).into_response();
+                        let user_agent = redirect::user_agent(req.headers()).map(str::to_owned);
+                        if let Some(target) =
+                            redirect::slug_target(&store, &path, user_agent.as_deref()).await
+                        {
+                            return redirect::redirect_response(&target);
                         }
                         serve_dir.oneshot(req).await.into_response()
                     }

@@ -1,11 +1,12 @@
 use crate::auth::{AuthConfig, CurrentUser};
 use crate::error::ApiError;
+use crate::rules::{self, MatchKind};
 use axum::{
     Extension, Json,
     extract::{Path, State},
 };
-use entity::links;
-use link_shortener_store::Store;
+use entity::{link_rules, links};
+use link_shortener_store::{LinkWithRules, Store};
 use rand::RngExt;
 use sea_orm::ActiveValue;
 use serde::{Deserialize, Serialize};
@@ -14,15 +15,33 @@ use url::Url;
 use uuid::Uuid;
 
 #[derive(Deserialize, utoipa::ToSchema)]
+pub struct RuleInput {
+    kind: MatchKind,
+    pattern: String,
+    target_url: String,
+}
+
+#[derive(Serialize, utoipa::ToSchema)]
+pub struct RuleResponse {
+    id: Uuid,
+    kind: MatchKind,
+    pattern: String,
+    target_url: String,
+}
+
+#[derive(Deserialize, utoipa::ToSchema)]
 pub struct CreateLinkRequest {
     slug: Option<String>,
     target_url: String,
+    #[serde(default)]
+    rules: Vec<RuleInput>,
 }
 
 #[derive(Deserialize, utoipa::ToSchema)]
 pub struct UpdateLinkRequest {
     slug: Option<String>,
     target_url: Option<String>,
+    rules: Option<Vec<RuleInput>>,
 }
 
 #[derive(Serialize, utoipa::ToSchema)]
@@ -31,20 +50,47 @@ pub struct LinkResponse {
     slug: String,
     target_url: String,
     owner_name: Option<String>,
+    rules: Vec<RuleResponse>,
     created_at: chrono::NaiveDateTime,
     updated_at: chrono::NaiveDateTime,
 }
 
-impl From<links::Model> for LinkResponse {
-    fn from(m: links::Model) -> Self {
-        Self {
+impl TryFrom<link_rules::Model> for RuleResponse {
+    type Error = ApiError;
+
+    fn try_from(m: link_rules::Model) -> Result<Self, Self::Error> {
+        let kind = MatchKind::parse(&m.kind).ok_or_else(|| {
+            ApiError::Internal(anyhow::anyhow!(
+                "rule {} has unknown match kind {:?}",
+                m.id,
+                m.kind
+            ))
+        })?;
+        Ok(Self {
             id: m.id,
-            slug: m.slug,
+            kind,
+            pattern: m.pattern,
             target_url: m.target_url,
-            owner_name: m.owner_name,
-            created_at: m.created_at,
-            updated_at: m.updated_at,
-        }
+        })
+    }
+}
+
+impl TryFrom<LinkWithRules> for LinkResponse {
+    type Error = ApiError;
+
+    fn try_from((link, rules): LinkWithRules) -> Result<Self, Self::Error> {
+        Ok(Self {
+            id: link.id,
+            slug: link.slug,
+            target_url: link.target_url,
+            owner_name: link.owner_name,
+            rules: rules
+                .into_iter()
+                .map(RuleResponse::try_from)
+                .collect::<Result<_, _>>()?,
+            created_at: link.created_at,
+            updated_at: link.updated_at,
+        })
     }
 }
 
@@ -66,9 +112,42 @@ fn is_http_url(value: &str) -> bool {
     Url::parse(value).is_ok_and(|url| matches!(url.scheme(), "http" | "https") && url.has_host())
 }
 
+fn is_rule_target(value: &str) -> bool {
+    const BLOCKED: [&str; 5] = ["javascript", "data", "vbscript", "file", "blob"];
+    Url::parse(value).is_ok_and(|url| !BLOCKED.contains(&url.scheme()))
+}
+
 /// A slug must be a single non-empty path segment to be resolvable
 fn is_valid_slug(slug: &str) -> bool {
     !slug.is_empty() && !slug.contains('/')
+}
+
+fn rule_models(rules: Vec<RuleInput>) -> Result<Vec<link_rules::ActiveModel>, ApiError> {
+    if rules.len() > rules::MAX_RULES {
+        return Err(ApiError::BadRequest(format!(
+            "a link may have at most {} rules",
+            rules::MAX_RULES
+        )));
+    }
+
+    rules
+        .into_iter()
+        .map(|rule| {
+            rules::validate_pattern(rule.kind, &rule.pattern).map_err(ApiError::BadRequest)?;
+            if !is_rule_target(&rule.target_url) {
+                return Err(ApiError::BadRequest(format!(
+                    "rule target_url {:?} must be an absolute URL with a non-executable scheme",
+                    rule.target_url
+                )));
+            }
+            Ok(link_rules::ActiveModel {
+                kind: ActiveValue::Set(rule.kind.as_str().to_owned()),
+                pattern: ActiveValue::Set(rule.pattern),
+                target_url: ActiveValue::Set(rule.target_url),
+                ..Default::default()
+            })
+        })
+        .collect()
 }
 
 #[utoipa::path(
@@ -87,7 +166,12 @@ pub async fn list_links(
     } else {
         store.links().list_by_owner(&user.subject).await?
     };
-    Ok(Json(links.into_iter().map(LinkResponse::from).collect()))
+    Ok(Json(
+        links
+            .into_iter()
+            .map(LinkResponse::try_from)
+            .collect::<Result<_, _>>()?,
+    ))
 }
 
 #[utoipa::path(
@@ -125,6 +209,8 @@ pub async fn create_link(
         None => generate_slug(),
     };
 
+    let rules = rule_models(body.rules)?;
+
     let link = links::ActiveModel {
         slug: ActiveValue::Set(slug),
         target_url: ActiveValue::Set(body.target_url),
@@ -133,11 +219,11 @@ pub async fn create_link(
         ..Default::default()
     };
 
-    let result = store.links().create(link).await?;
+    let result = store.links().create(link, rules).await?;
 
     Ok((
         axum::http::StatusCode::CREATED,
-        Json(LinkResponse::from(result)),
+        Json(LinkResponse::try_from(result)?),
     ))
 }
 
@@ -184,8 +270,10 @@ pub async fn update_link(
         active.target_url = ActiveValue::Set(target_url);
     }
 
-    let result = store.links().update(active).await?;
-    Ok(Json(LinkResponse::from(result)))
+    let rules = body.rules.map(rule_models).transpose()?;
+
+    let result = store.links().update(active, rules).await?;
+    Ok(Json(LinkResponse::try_from(result)?))
 }
 
 #[utoipa::path(
@@ -212,4 +300,19 @@ pub async fn delete_link(
 
     store.links().delete(id).await?;
     Ok(axum::http::StatusCode::NO_CONTENT)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_rule_target;
+
+    #[test]
+    fn rule_targets_allow_deep_links_but_not_executable_schemes() {
+        assert!(is_rule_target("https://apps.apple.com/app/id123"));
+        assert!(is_rule_target("myapp://open?ref=1"));
+        assert!(is_rule_target("intent://scan#Intent;scheme=zxing;end"));
+        assert!(!is_rule_target("javascript:alert(1)"));
+        assert!(!is_rule_target("data:text/html,<script>x</script>"));
+        assert!(!is_rule_target("/relative/path"));
+    }
 }

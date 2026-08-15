@@ -47,9 +47,20 @@ Public routes do not require authentication:
 - `GET /api/health`
 - `GET /{slug}` (slug redirect, handled by the router fallback)
 
+## User-agent rules
+
+A link owns an ordered list of rules next to its `target_url`. On a redirect the rules are tried top to bottom against the request `User-Agent`, and the first match decides the target. The link's own `target_url` is the fallback, including for clients that send no `User-Agent`. Redirects carry `Vary: User-Agent` so caches keep the variants apart.
+
+There are two kinds of rule:
+
+- `platform` names a curated family: `ios`, `android`, `mobile`, `desktop`, `windows`, `macos`, `linux`, `chromeos`, `bot`. iPadOS in desktop mode is indistinguishable from macOS on the server, so it classifies as `macos`.
+- `regex` is an unanchored, case-insensitive regular expression, for example `CriOS/1[0-9]{2}` to single out Chrome on iOS.
+
+A rule target may use an app deep-link scheme such as `myapp://` or `intent://`.
+
 ## Static files and slug redirects
 
-In production the backend serves the built SPA itself. When `STATIC_DIR` is set, a `ServeDir` serves the static files and uses the slug handler as its not found service. The slug handler checks whether the path is a single segment matching a slug in the database; if so it returns a 307 redirect, otherwise a 404. When `STATIC_DIR` is unset, as in local development, the SPA is served by the Vite dev server and the backend fallback is the slug handler alone.
+In production the backend serves the built SPA itself. When `STATIC_DIR` is set, a `ServeDir` serves the static files and uses the slug handler as its not found service. The slug handler checks whether the path is a single segment matching a slug in the database; if so it returns a 307 redirect to the target picked by the link's user-agent rules, otherwise a 404. When `STATIC_DIR` is unset, as in local development, the SPA is served by the Vite dev server and the backend fallback is the slug handler alone.
 
 ## Frontend
 

@@ -2,4 +2,5 @@
 
 pub mod prelude;
 
+pub mod link_rules;
 pub mod links;

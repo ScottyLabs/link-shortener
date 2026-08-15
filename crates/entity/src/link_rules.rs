@@ -6,31 +6,37 @@ use serde::{Deserialize, Serialize};
 #[derive(
     Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize, utoipa :: ToSchema,
 )]
-#[sea_orm(table_name = "links")]
+#[sea_orm(table_name = "link_rules")]
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub id: Uuid,
-    #[sea_orm(column_type = "Text", unique)]
-    pub slug: String,
+    pub link_id: Uuid,
+    pub position: i32,
+    #[sea_orm(column_type = "Text")]
+    pub kind: String,
+    #[sea_orm(column_type = "Text")]
+    pub pattern: String,
     #[sea_orm(column_type = "Text")]
     pub target_url: String,
-    #[sea_orm(column_type = "Text")]
-    pub owner_id: String,
     pub created_at: DateTime,
     pub updated_at: DateTime,
-    #[sea_orm(column_type = "Text", nullable)]
-    pub owner_name: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
-    #[sea_orm(has_many = "super::link_rules::Entity")]
-    LinkRules,
+    #[sea_orm(
+        belongs_to = "super::links::Entity",
+        from = "Column::LinkId",
+        to = "super::links::Column::Id",
+        on_update = "NoAction",
+        on_delete = "Cascade"
+    )]
+    Links,
 }
 
-impl Related<super::link_rules::Entity> for Entity {
+impl Related<super::links::Entity> for Entity {
     fn to() -> RelationDef {
-        Relation::LinkRules.def()
+        Relation::Links.def()
     }
 }
 
