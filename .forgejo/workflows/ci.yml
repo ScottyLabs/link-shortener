@@ -8,4 +8,4 @@ on:
 jobs:
   check:
     uses: ScottyLabs/kennel/.forgejo/workflows/ci.yml@main
-    secrets: inherit
+    enable-openid-connect: true

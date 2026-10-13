@@ -1,25 +1,8 @@
 # Setup
 
-## Prerequisites
-
-- [Nix](https://nixos.org/download/) with flakes enabled
-- [devenv](https://devenv.sh/getting-started/)
-
 ## Getting started
 
-Log in to OpenBao once per machine. The shell resolves secrets as it loads and will not activate without a token, so run this on a fresh checkout before entering the shell for the first time:
-
-```bash
-nix run git+https://codeberg.org/ScottyLabs/kennel#login
-```
-
-The token renews on each shell entry, so you only repeat this on a new machine.
-
-Let direnv activate the environment automatically when you enter the directory:
-
-```bash
-direnv allow
-```
+Log in to OpenBao and set up devenv by following kennel's [local development](https://docs.kennel.scottylabs.org/guides/secrets.html#local-development) and [devenv setup](https://docs.kennel.scottylabs.org/guides/deploying.html#2-set-up-devenv) guides.
 
 Start PostgreSQL in the background, and stop it when you are done:
 
@@ -45,7 +28,7 @@ The shell also provides helper commands: `generate-api` regenerates the typed AP
 
 ## Secrets
 
-Secrets are managed with secretspec and resolved from the ScottyLabs vault. The dev environment wires this up in `devenv.yaml`, so the values are present in the shell and inherited by any process you start from it. The complete set is declared in `secretspec.toml`:
+Secrets are managed with secretspec and resolved from the ScottyLabs OpenBao. The dev environment wires this up in `devenv.yaml`, so the values are present in the shell and inherited by any process you start from it. The complete set is declared in `secretspec.toml`:
 
 - `KEYCLOAK_URL` and `KEYCLOAK_REALM` locate the Keycloak realm
 - `OIDC_CLIENT_ID` and `OIDC_CLIENT_SECRET` are the confidential client credentials
