@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { identify, resetAnalytics } from "$lib/analytics";
     import { api } from "$lib/api/client";
     import type { components } from "$lib/api/schema";
     import CreateLink from "$lib/components/CreateLink.svelte";
@@ -14,6 +15,7 @@
             const { data } = await api.GET("/api/me");
             if (data) {
                 user = data;
+                identify(data.subject, data.name);
             }
         } finally {
             loading = false;
@@ -30,7 +32,7 @@
         <p>Loading...</p>
     {:else if user}
         <p>Logged in as {user.name}</p>
-        <a href="/auth/logout">Log out</a>
+        <a href="/auth/logout" onclick={resetAnalytics}>Log out</a>
         {#if user.can_create}
             <CreateLink onCreated={() => location.reload()} />
         {/if}

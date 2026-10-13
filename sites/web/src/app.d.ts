@@ -7,3 +7,8 @@ declare namespace App {
   // interface PageState {}
   // interface Platform {}
 }
+
+interface ImportMetaEnv {
+  readonly POSTHOG_KEY?: string;
+  readonly POSTHOG_HOST?: string;
+}

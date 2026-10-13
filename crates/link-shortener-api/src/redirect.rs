@@ -1,43 +1,48 @@
-use crate::rules;
+use crate::{
+    analytics::{Analytics, RequestInfo},
+    rules,
+};
 use axum::{
-    extract::State,
-    http::{HeaderMap, StatusCode, Uri, header},
+    http::header,
     response::{IntoResponse, Redirect, Response},
 };
 use link_shortener_store::Store;
-use std::sync::Arc;
+use posthog_rs::Event;
 
-/// Resolve a request path to a slug target URL when the path is a single
-/// segment matching a slug.
-pub async fn slug_target(store: &Store, path: &str, user_agent: Option<&str>) -> Option<String> {
-    let slug = path.trim_start_matches('/');
-    if slug.is_empty() || slug.contains('/') {
-        return None;
-    }
+pub enum Outcome {
+    Redirect(Response),
+    /// Sent only if no static file matches either
+    Missing(Option<Event>),
+    Skip,
+}
+
+pub async fn redirect(store: &Store, analytics: &Analytics, request: &RequestInfo<'_>) -> Outcome {
+    let Some(slug) = request.slug() else {
+        return Outcome::Skip;
+    };
+
     match store.links().find_by_slug(slug).await {
         Ok(Some((link, link_rules))) => {
-            Some(rules::resolve_target(&link, &link_rules, user_agent).to_owned())
+            let rule = rules::matching_rule(link_rules, request.user_agent());
+            let target = rule
+                .as_ref()
+                .map_or(link.target_url.as_str(), |rule| rule.target_url.as_str());
+
+            analytics.link_visited(request, &link, rule.as_ref(), target);
+            Outcome::Redirect(redirect_response(target))
         }
-        _ => None,
+        Ok(None) => Outcome::Missing(analytics.link_not_found(request, slug)),
+        Err(err) => {
+            tracing::error!(%err, slug, "slug lookup failed");
+            Outcome::Skip
+        }
     }
 }
 
-pub fn user_agent(headers: &HeaderMap) -> Option<&str> {
-    headers.get(header::USER_AGENT)?.to_str().ok()
-}
-
-pub fn redirect_response(target: &str) -> Response {
+fn redirect_response(target: &str) -> Response {
     (
         [(header::VARY, header::USER_AGENT.as_str())],
         Redirect::temporary(target),
     )
         .into_response()
-}
-
-/// Slug redirect fallback. Returns 307 if the path matches a slug, otherwise 404.
-pub async fn fallback(State(store): State<Arc<Store>>, headers: HeaderMap, uri: Uri) -> Response {
-    match slug_target(&store, uri.path(), user_agent(&headers)).await {
-        Some(target) => redirect_response(&target),
-        None => StatusCode::NOT_FOUND.into_response(),
-    }
 }

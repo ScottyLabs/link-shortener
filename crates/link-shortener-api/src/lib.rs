@@ -1,17 +1,21 @@
+mod analytics;
 mod auth;
 mod error;
 mod links;
 mod redirect;
 mod rules;
 
+pub use analytics::Analytics;
+use analytics::RequestInfo;
 pub use auth::OidcConfig;
 use auth::{AuthConfig, GroupClaims};
+use redirect::Outcome;
 
 use axum::{
     Extension, Router,
     error_handling::HandleErrorLayer,
     extract::{FromRequestParts, Request, State},
-    http::request::Parts,
+    http::{StatusCode, request::Parts},
     response::{IntoResponse, Redirect},
     routing::get,
 };
@@ -86,7 +90,11 @@ fn relay_state(return_to: &str) -> String {
 )]
 struct ApiDoc;
 
-pub async fn router(store: Arc<Store>, oidc_config: OidcConfig) -> anyhow::Result<Router> {
+pub async fn router(
+    store: Arc<Store>,
+    oidc_config: OidcConfig,
+    analytics: Arc<Analytics>,
+) -> anyhow::Result<Router> {
     // Session
     let session_store = MemoryStore::default();
     let session_layer = ServiceBuilder::new().layer(
@@ -168,6 +176,7 @@ pub async fn router(store: Arc<Store>, oidc_config: OidcConfig) -> anyhow::Resul
         .layer(session_layer)
         .layer(TraceLayer::new_for_http())
         .layer(Extension(auth_config))
+        .layer(Extension(analytics.clone()))
         .with_state(store.clone())
         .split_for_parts();
 
@@ -182,27 +191,35 @@ pub async fn router(store: Arc<Store>, oidc_config: OidcConfig) -> anyhow::Resul
         );
 
     // Serve the built SPA in prod when STATIC_DIR is set, falling back to slug redirects
-    let app = match std::env::var("STATIC_DIR") {
-        Ok(static_dir) => {
-            let serve_dir = ServeDir::new(static_dir).append_index_html_on_directories(true);
-            router
-                .fallback(move |State(store): State<Arc<Store>>, req: Request| {
-                    let serve_dir = serve_dir.clone();
-                    async move {
-                        let path = req.uri().path().to_owned();
-                        let user_agent = redirect::user_agent(req.headers()).map(str::to_owned);
-                        if let Some(target) =
-                            redirect::slug_target(&store, &path, user_agent.as_deref()).await
-                        {
-                            return redirect::redirect_response(&target);
-                        }
-                        serve_dir.oneshot(req).await.into_response()
-                    }
-                })
-                .with_state(store)
-        }
-        Err(_) => router.fallback(redirect::fallback).with_state(store),
-    };
+    let serve_dir = std::env::var("STATIC_DIR")
+        .ok()
+        .map(|dir| ServeDir::new(dir).append_index_html_on_directories(true));
+    let app = router
+        .fallback(move |State(store): State<Arc<Store>>, req: Request| {
+            let serve_dir = serve_dir.clone();
+            let analytics = analytics.clone();
+            async move {
+                let request = RequestInfo::new(req.method(), req.uri(), req.headers());
+                let not_found = match redirect::redirect(&store, &analytics, &request).await {
+                    Outcome::Redirect(response) => return response,
+                    Outcome::Missing(event) => event,
+                    Outcome::Skip => None,
+                };
+
+                let response = match serve_dir {
+                    Some(serve_dir) => serve_dir.oneshot(req).await.into_response(),
+                    None => StatusCode::NOT_FOUND.into_response(),
+                };
+
+                if response.status() == StatusCode::NOT_FOUND
+                    && let Some(event) = not_found
+                {
+                    analytics.capture(event);
+                }
+                response
+            }
+        })
+        .with_state(store);
 
     Ok(app)
 }

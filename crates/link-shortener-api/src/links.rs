@@ -1,3 +1,4 @@
+use crate::analytics::{Analytics, LinkChange, RequestMeta};
 use crate::auth::{AuthConfig, CurrentUser};
 use crate::error::ApiError;
 use crate::rules::{self, MatchKind};
@@ -183,7 +184,9 @@ pub async fn list_links(
 )]
 pub async fn create_link(
     user: CurrentUser,
+    request: RequestMeta,
     Extension(auth): Extension<Arc<AuthConfig>>,
+    Extension(analytics): Extension<Arc<Analytics>>,
     State(store): State<Arc<Store>>,
     Json(body): Json<CreateLinkRequest>,
 ) -> Result<(axum::http::StatusCode, Json<LinkResponse>), ApiError> {
@@ -219,7 +222,16 @@ pub async fn create_link(
         ..Default::default()
     };
 
+    let rule_count = rules.len();
     let result = store.links().create(link, rules).await?;
+
+    analytics.link_changed(
+        LinkChange::Created { rule_count },
+        &request.info(),
+        &result.0.owner_id,
+        result.0.owner_name.as_deref(),
+        &result.0,
+    );
 
     Ok((
         axum::http::StatusCode::CREATED,
@@ -236,7 +248,9 @@ pub async fn create_link(
 )]
 pub async fn update_link(
     user: CurrentUser,
+    request: RequestMeta,
     Extension(auth): Extension<Arc<AuthConfig>>,
+    Extension(analytics): Extension<Arc<Analytics>>,
     State(store): State<Arc<Store>>,
     Path(id): Path<Uuid>,
     Json(body): Json<UpdateLinkRequest>,
@@ -251,6 +265,14 @@ pub async fn update_link(
         return Err(ApiError::Forbidden);
     }
 
+    let slug_changed = body
+        .slug
+        .as_ref()
+        .is_some_and(|slug| *slug != existing.slug);
+    let target_changed = body
+        .target_url
+        .as_ref()
+        .is_some_and(|target| *target != existing.target_url);
     let mut active: links::ActiveModel = existing.into();
 
     if let Some(slug) = body.slug {
@@ -272,7 +294,20 @@ pub async fn update_link(
 
     let rules = body.rules.map(rule_models).transpose()?;
 
+    let rule_count = rules.as_ref().map(Vec::len);
     let result = store.links().update(active, rules).await?;
+
+    analytics.link_changed(
+        LinkChange::Updated {
+            rule_count,
+            slug_changed,
+            target_changed,
+        },
+        &request.info(),
+        &user.subject,
+        Some(&user.name),
+        &result.0,
+    );
     Ok(Json(LinkResponse::try_from(result)?))
 }
 
@@ -284,7 +319,9 @@ pub async fn update_link(
 )]
 pub async fn delete_link(
     user: CurrentUser,
+    request: RequestMeta,
     Extension(auth): Extension<Arc<AuthConfig>>,
+    Extension(analytics): Extension<Arc<Analytics>>,
     State(store): State<Arc<Store>>,
     Path(id): Path<Uuid>,
 ) -> Result<axum::http::StatusCode, ApiError> {
@@ -299,6 +336,14 @@ pub async fn delete_link(
     }
 
     store.links().delete(id).await?;
+
+    analytics.link_changed(
+        LinkChange::Deleted,
+        &request.info(),
+        &user.subject,
+        Some(&user.name),
+        &existing,
+    );
     Ok(axum::http::StatusCode::NO_CONTENT)
 }
 

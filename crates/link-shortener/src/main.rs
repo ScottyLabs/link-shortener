@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use link_shortener_api::OidcConfig;
+use link_shortener_api::{Analytics, OidcConfig};
 use link_shortener_store::Store;
 use sea_orm::Database;
 use sea_orm_migration::MigratorTrait;
@@ -54,8 +54,17 @@ async fn main() -> Result<()> {
     migration::Migrator::up(&db, None).await?;
     tracing::info!("migrations applied");
 
+    let analytics = Arc::new(
+        Analytics::new(
+            std::env::var("POSTHOG_KEY").ok(),
+            std::env::var("POSTHOG_HOST").ok(),
+            std::env::var("COMMIT_HASH").ok(),
+        )
+        .await?,
+    );
+
     let store = Arc::new(Store::new(db));
-    let app = link_shortener_api::router(store, oidc_config).await?;
+    let app = link_shortener_api::router(store, oidc_config, analytics.clone()).await?;
 
     let addr = format!("0.0.0.0:{port}");
     let listener = tokio::net::TcpListener::bind(&addr).await?;
@@ -64,6 +73,8 @@ async fn main() -> Result<()> {
     axum::serve(listener, app)
         .with_graceful_shutdown(shutdown_signal())
         .await?;
+
+    analytics.shutdown().await;
 
     Ok(())
 }

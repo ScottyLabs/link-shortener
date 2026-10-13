@@ -1,4 +1,4 @@
-use entity::{link_rules, links};
+use entity::link_rules;
 use regex::{Regex, RegexBuilder};
 use serde::{Deserialize, Serialize};
 
@@ -125,7 +125,7 @@ impl Platform {
     }
 }
 
-fn contains_ci(haystack: &str, needle: &str) -> bool {
+pub(crate) fn contains_ci(haystack: &str, needle: &str) -> bool {
     debug_assert!(needle.bytes().all(|b| !b.is_ascii_uppercase()));
     let (haystack, needle) = (haystack.as_bytes(), needle.as_bytes());
     needle.len() <= haystack.len()
@@ -171,16 +171,12 @@ fn rule_matches(rule: &link_rules::Model, user_agent: &str) -> bool {
     }
 }
 
-pub fn resolve_target<'a>(
-    link: &'a links::Model,
-    rules: &'a [link_rules::Model],
+pub fn matching_rule(
+    rules: Vec<link_rules::Model>,
     user_agent: Option<&str>,
-) -> &'a str {
-    let Some(user_agent) = user_agent else {
-        return &link.target_url;
-    };
+) -> Option<link_rules::Model> {
+    let user_agent = user_agent?;
     rules
-        .iter()
+        .into_iter()
         .find(|rule| rule_matches(rule, user_agent))
-        .map_or(link.target_url.as_str(), |rule| rule.target_url.as_str())
 }

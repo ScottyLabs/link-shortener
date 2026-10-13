@@ -60,7 +60,19 @@ A rule target may use an app deep-link scheme such as `myapp://` or `intent://`.
 
 ## Static files and slug redirects
 
-In production the backend serves the built SPA itself. When `STATIC_DIR` is set, a `ServeDir` serves the static files and uses the slug handler as its not found service. The slug handler checks whether the path is a single segment matching a slug in the database; if so it returns a 307 redirect to the target picked by the link's user-agent rules, otherwise a 404. When `STATIC_DIR` is unset, as in local development, the SPA is served by the Vite dev server and the backend fallback is the slug handler alone.
+In production the backend serves the built SPA itself. The router fallback first checks whether the path is a single segment matching a slug in the database; if so it returns a 307 redirect to the target picked by the link's user-agent rules. Otherwise, when `STATIC_DIR` is set, a `ServeDir` serves the static files, and when it is unset, as in local development where the Vite dev server serves the SPA, the fallback returns a 404.
+
+## Analytics
+
+The backend sends these events to PostHog:
+
+- `link_visited` on every redirect, with the slug, link, matched rule, and resolved target
+- `link_not_found` when a single-segment path matches no link and no static file
+- `link_created`, `link_updated`, and `link_deleted` from the admin API
+
+Visit events are anonymous, keyed by a hash of the visitor's IP, host, and user agent, and also record the referrer, `Accept-Language`, `utm_*` and ad click ID query parameters, in-app browser markers, `Sec-Fetch-Site`, prefetches, and `Sec-GPC`. Admin events are identified by the staff member's OIDC subject.
+
+The frontend sends its own events with `posthog-js` and identifies users by their OIDC subject, the same ID the admin events use.
 
 ## Frontend
 
