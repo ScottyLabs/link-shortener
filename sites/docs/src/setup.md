@@ -2,7 +2,7 @@
 
 ## Getting started
 
-Install Lix and log in to OpenBao by following kennel's [local development](https://docs.kennel.scottylabs.org/guides/local-development.html#installing-nix) and [secrets](https://docs.kennel.scottylabs.org/guides/secrets.html#local-development) guides, then enter the dev shell with `nix develop`.
+Install Lix and log in to OpenBao by following kennel's [local development](https://docs.kennel.scottylabs.org/guides/local-development/#installing-nix) and [secrets](https://docs.kennel.scottylabs.org/guides/secrets/#local-development) guides, then enter the dev shell with `nix develop`.
 
 Start PostgreSQL and the OAuth relay in the background:
 
