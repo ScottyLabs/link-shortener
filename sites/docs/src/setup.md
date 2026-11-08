@@ -2,16 +2,13 @@
 
 ## Getting started
 
-Log in to OpenBao and set up devenv by following kennel's [local development](https://docs.kennel.scottylabs.org/guides/secrets.html#local-development) and [devenv setup](https://docs.kennel.scottylabs.org/guides/deploying.html#2-set-up-devenv) guides.
+Log in to OpenBao by following kennel's [local development](https://docs.kennel.scottylabs.org/guides/secrets.html#local-development) guide, then enter the dev shell with `nix develop`.
 
-Start PostgreSQL in the background, and stop it when you are done:
+Start PostgreSQL and the OAuth relay in the background, and stop them when you are done:
 
 ```bash
-# Start
-devenv up -d
-
-# Stop
-devenv processes down
+pitchfork start --local
+pitchfork stop --local
 ```
 
 Run the backend and frontend in separate terminals:

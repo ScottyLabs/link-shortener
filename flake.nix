@@ -9,63 +9,77 @@
   };
 
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
-    scottylabs = {
-      url = "git+https://git.cmu.dev/ScottyLabs/kennel";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+    scottylabs.url = "git+https://git.cmu.dev/ScottyLabs/kennel";
+    nixpkgs.follows = "scottylabs/nixpkgs";
+    flake-parts.follows = "scottylabs/flake-parts";
   };
 
   outputs =
-    {
-      nixpkgs,
-      scottylabs,
-      ...
-    }:
-    let
+    inputs:
+    inputs.flake-parts.lib.mkFlake { inherit inputs; } {
+      imports = [ inputs.scottylabs.flakeModules.default ];
       systems = [
         "x86_64-linux"
         "aarch64-linux"
+        "aarch64-darwin"
       ];
-      forAllSystems = nixpkgs.lib.genAttrs systems;
-    in
-    {
-      packages = forAllSystems (
-        system:
-        let
-          pkgs = nixpkgs.legacyPackages.${system};
-          helpers = scottylabs.mkLib pkgs;
 
+      perSystem =
+        { pkgs, helpers, ... }:
+        let
           web = helpers.buildDenoTask {
             src = ./sites/web;
             pname = "link-shortener-web";
-            version = "0.1.0";
             output = "build";
-          };
-
-          docs = helpers.buildMdbook {
-            src = ./sites/docs;
-            name = "link-shortener-docs";
-          };
-
-          link-shortener = helpers.buildRustService {
-            src = ./.;
-            pname = "link-shortener";
-            version = "0.1.0";
-            nativeBuildInputs = [
-              pkgs.pkg-config
-              pkgs.makeWrapper
-            ];
-            buildInputs = [ pkgs.openssl ];
-            # Bake the SPA into the binary so the service serves it
-            buildArgs.postInstall = ''
-              wrapProgram $out/bin/link-shortener --set STATIC_DIR ${web}
-            '';
           };
         in
         {
-          inherit link-shortener web docs;
-        }
-      );
+          scottylabs = {
+            project.name = "link-shortener";
+            rust.enable = true;
+            deno = {
+              enable = true;
+              svelte.enable = true;
+              dirs = [ "sites/web" ];
+            };
+            postgres.enable = true;
+            ricochet = {
+              enable = true;
+              appUrl = "http://localhost:5173";
+            };
+
+            shell = {
+              packages = [
+                pkgs.mdbook
+                pkgs.sea-orm-cli
+              ];
+              scripts = {
+                migration = ''sea-orm-cli migrate generate "$1" -d crates/migration'';
+                migrate = "sea-orm-cli migrate up -d crates/migration";
+                generate-entities = "sea-orm-cli generate entity -o crates/entity/src --with-serde both --lib --model-extra-derives 'utoipa::ToSchema' --enum-extra-derives 'utoipa::ToSchema'";
+                generate-api = "cd sites/web && deno task generate-api";
+                docs = "cd sites/docs && mdbook serve";
+              };
+            };
+          };
+
+          services.link-shortener = {
+            package = helpers.buildRustService {
+              src = ./.;
+              pname = "link-shortener";
+              version = "0.1.0";
+            };
+            customDomain = "cmu.lol";
+            env.STATIC_DIR = "${web}";
+          };
+
+          sites.docs = {
+            package = helpers.buildMdbook {
+              src = ./sites/docs;
+              name = "link-shortener-docs";
+            };
+            customDomain = "docs.cmu.lol";
+          };
+        };
     };
 }

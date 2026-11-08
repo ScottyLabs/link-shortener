@@ -1,11 +1,12 @@
+import { env } from "$env/dynamic/public";
 import posthog from "posthog-js";
 
-const key = import.meta.env.POSTHOG_KEY;
+const key = env.PUBLIC_POSTHOG_KEY;
 
 export function initAnalytics(): void {
   if (key === undefined) return;
   posthog.init(key, {
-    api_host: import.meta.env.POSTHOG_HOST,
+    api_host: env.PUBLIC_POSTHOG_HOST,
     ui_host: "https://us.posthog.com",
     defaults: "2025-05-24",
   });

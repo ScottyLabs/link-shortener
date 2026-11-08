@@ -56,8 +56,8 @@ async fn main() -> Result<()> {
 
     let analytics = Arc::new(
         Analytics::new(
-            std::env::var("POSTHOG_KEY").ok(),
-            std::env::var("POSTHOG_HOST").ok(),
+            std::env::var("PUBLIC_POSTHOG_KEY").ok(),
+            std::env::var("PUBLIC_POSTHOG_HOST").ok(),
             std::env::var("COMMIT_HASH").ok(),
         )
         .await?,
