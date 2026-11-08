@@ -4,11 +4,6 @@ site_url = "https://docs.cmu.lol"
 repo_url = "https://git.cmu.dev/ScottyLabs/link-shortener"
 docs_dir = "src"
 edit_uri = "_edit/main/sites/docs/src/"
-nav = [
-  { "Introduction" = "index.md" },
-  { "Setup" = "setup.md" },
-  { "Architecture" = "architecture.md" },
-]
 
 [project.theme]
 features = ["content.action.edit"]
