@@ -11,8 +11,9 @@ node_modules/
 sites/web/.svelte-kit/
 sites/web/build/
 
-# Secrets
-.env
+# Docs
+sites/docs/site/
+sites/docs/.cache/
 
 # OS
 .DS_Store

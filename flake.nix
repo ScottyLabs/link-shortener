@@ -50,7 +50,7 @@
 
             shell = {
               packages = [
-                pkgs.mdbook
+                pkgs.zensical
                 pkgs.sea-orm-cli
               ];
               scripts = {
@@ -58,7 +58,7 @@
                 migrate = "sea-orm-cli migrate up -d crates/migration";
                 generate-entities = "sea-orm-cli generate entity -o crates/entity/src --with-serde both --lib --model-extra-derives 'utoipa::ToSchema' --enum-extra-derives 'utoipa::ToSchema'";
                 generate-api = "cd sites/web && deno task generate-api";
-                docs = "cd sites/docs && mdbook serve";
+                docs = "cd sites/docs && zensical serve";
               };
             };
           };
@@ -74,7 +74,7 @@
           };
 
           sites.docs = {
-            package = helpers.buildMdbook {
+            package = helpers.buildZensical {
               src = ./sites/docs;
               name = "link-shortener-docs";
             };

@@ -2,21 +2,12 @@
 
 ## Getting started
 
-Install [Lix](https://lix.systems/install/) with the ScottyLabs binary cache:
+Install Lix and log in to OpenBao by following kennel's [local development](https://docs.kennel.scottylabs.org/guides/local-development.html#installing-nix) and [secrets](https://docs.kennel.scottylabs.org/guides/secrets.html#local-development) guides, then enter the dev shell with `nix develop`.
 
-```bash
-curl -sSf -L https://install.lix.systems/lix | sh -s -- install \
-  --extra-conf "extra-substituters = https://scottylabs.cachix.org" \
-  --extra-conf "extra-trusted-public-keys = scottylabs.cachix.org-1:hajjEX5SLi/Y7yYloiXTt2IOr3towcTGRhMh1vu6Tjg="
-```
-
-Then log in to OpenBao by following kennel's [local development](https://docs.kennel.scottylabs.org/guides/secrets.html#local-development) guide, and enter the dev shell with `nix develop`.
-
-Start PostgreSQL and the OAuth relay in the background, and stop them when you are done:
+Start PostgreSQL and the OAuth relay in the background:
 
 ```bash
 pitchfork start --local
-pitchfork stop --local
 ```
 
 Run the backend and frontend in separate terminals:

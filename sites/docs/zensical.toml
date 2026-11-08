@@ -1,0 +1,24 @@
+[project]
+site_name = "ScottyLabs Link Shortener"
+site_url = "https://docs.cmu.lol"
+repo_url = "https://git.cmu.dev/ScottyLabs/link-shortener"
+docs_dir = "src"
+edit_uri = "_edit/main/sites/docs/src/"
+nav = [
+  { "Introduction" = "index.md" },
+  { "Setup" = "setup.md" },
+  { "Architecture" = "architecture.md" },
+]
+
+[project.theme]
+features = ["content.action.edit"]
+
+[[project.theme.palette]]
+scheme = "slate"
+toggle.icon = "lucide/sun"
+toggle.name = "Switch to light mode"
+
+[[project.theme.palette]]
+scheme = "default"
+toggle.icon = "lucide/moon"
+toggle.name = "Switch to dark mode"
