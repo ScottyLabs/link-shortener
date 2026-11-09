@@ -5,8 +5,7 @@ use link_shortener_store::{Store, StoreError};
 use sea_orm::ActiveValue::Set;
 use uuid::Uuid;
 
-// exercises the real postgres unique index through store.create and store.update
-// run with: cargo test -p link-shortener-store -- --ignored
+// exercises the real postgres unique index through store.create and store.update run with: cargo test -p link-shortener-store -- --ignored
 #[tokio::test]
 #[ignore = "requires a postgres DATABASE_URL with pg_uuidv7"]
 async fn duplicate_slug_yields_slug_conflict() {

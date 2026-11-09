@@ -9,7 +9,7 @@ impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         let db = manager.get_connection();
 
-        db.execute(Statement::from_string(
+        db.execute_raw(Statement::from_string(
             DbBackend::Postgres,
             "CREATE EXTENSION IF NOT EXISTS pg_uuidv7".to_string(),
         ))
@@ -57,25 +57,25 @@ impl MigrationTrait for Migration {
             .await?;
 
         // updated_at trigger
-        db.execute(Statement::from_string(
+        db.execute_raw(Statement::from_string(
             DbBackend::Postgres,
             r#"
-            CREATE OR REPLACE FUNCTION update_updated_at_column()
-            RETURNS TRIGGER AS $$
-            BEGIN
-                NEW.updated_at = now();
-                RETURN NEW;
-            END;
-            $$ language 'plpgsql';
-            "#
+        CREATE OR REPLACE FUNCTION update_updated_at_column()
+        RETURNS TRIGGER AS $$
+        BEGIN
+            NEW.updated_at = now();
+            RETURN NEW;
+        END;
+        $$ language 'plpgsql';
+        "#
             .to_string(),
         ))
         .await?;
 
-        db.execute(Statement::from_string(
+        db.execute_raw(Statement::from_string(
             DbBackend::Postgres,
             "CREATE TRIGGER update_links_updated_at BEFORE UPDATE ON links \
-             FOR EACH ROW EXECUTE FUNCTION update_updated_at_column()"
+         FOR EACH ROW EXECUTE FUNCTION update_updated_at_column()"
                 .to_string(),
         ))
         .await?;
@@ -86,13 +86,13 @@ impl MigrationTrait for Migration {
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         let db = manager.get_connection();
 
-        db.execute(Statement::from_string(
+        db.execute_raw(Statement::from_string(
             DbBackend::Postgres,
             "DROP TRIGGER IF EXISTS update_links_updated_at ON links".to_string(),
         ))
         .await?;
 
-        db.execute(Statement::from_string(
+        db.execute_raw(Statement::from_string(
             DbBackend::Postgres,
             "DROP FUNCTION IF EXISTS update_updated_at_column()".to_string(),
         ))

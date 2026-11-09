@@ -10,11 +10,11 @@ axum = "0.8.8"
 link-shortener-api = { version = "0.1.0", path = "../link-shortener-api" }
 link-shortener-store = { version = "0.1.0", path = "../link-shortener-store" }
 migration = { version = "0.1.0", path = "../migration" }
-sea-orm = { version = "1.1.19", features = [
+sea-orm = { version = "2.0.4", features = [
   "runtime-tokio-rustls",
   "sqlx-postgres",
 ] }
-sea-orm-migration = "1.1.19"
+sea-orm-migration = "2.0.4"
 secrecy = "0.10.3"
 secretspec = { version = "0.13.0", default-features = false }
 secretspec-derive = "0.13.0"

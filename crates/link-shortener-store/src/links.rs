@@ -56,8 +56,7 @@ impl<'a> LinkRepository<'a> {
         let slug = active_slug(&link);
         let txn = self.db.begin().await?;
 
-        // insert with on-conflict-do-nothing
-        // a duplicate slug then yields no returned row which sea-orm maps to RecordNotFound
+        // insert with on-conflict-do-nothing a duplicate slug then yields no returned row which sea-orm maps to RecordNotFound
         let model = match Links::insert(link)
             .on_conflict(
                 OnConflict::column(links::Column::Slug)

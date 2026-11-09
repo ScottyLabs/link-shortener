@@ -61,10 +61,10 @@ impl MigrationTrait for Migration {
 
         manager
             .get_connection()
-            .execute(Statement::from_string(
+            .execute_raw(Statement::from_string(
                 DbBackend::Postgres,
                 "CREATE TRIGGER update_link_rules_updated_at BEFORE UPDATE ON link_rules \
-                 FOR EACH ROW EXECUTE FUNCTION update_updated_at_column()"
+         FOR EACH ROW EXECUTE FUNCTION update_updated_at_column()"
                     .to_string(),
             ))
             .await?;
