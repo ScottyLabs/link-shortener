@@ -72,3 +72,46 @@ async fn duplicate_slug_yields_slug_conflict() {
         .expect("non-colliding update");
     assert_eq!(updated.slug, fresh);
 }
+
+#[tokio::test]
+#[ignore = "requires a postgres DATABASE_URL with pg_uuidv7"]
+async fn slugs_ignore_case() {
+    let db = common::connect().await;
+
+    let store = Store::new(db);
+    let slug = format!("Mixed-{}", Uuid::now_v7());
+
+    let active = |slug: &str| links::ActiveModel {
+        slug: Set(slug.to_owned()),
+        target_url: Set("https://example.com".to_owned()),
+        owner_id: Set("tester".to_owned()),
+        ..Default::default()
+    };
+
+    store
+        .links()
+        .create(active(&slug), vec![])
+        .await
+        .expect("insert");
+
+    let (found, _) = store
+        .links()
+        .find_by_slug(&slug.to_lowercase())
+        .await
+        .expect("find")
+        .expect("lookup ignores case");
+    assert_eq!(
+        found.slug, slug,
+        "the slug keeps the case it was created with"
+    );
+
+    let err = store
+        .links()
+        .create(active(&slug.to_uppercase()), vec![])
+        .await
+        .expect_err("a slug differing only in case must conflict");
+    assert!(
+        matches!(err, StoreError::SlugConflict(_)),
+        "expected SlugConflict, got {err:?}",
+    );
+}

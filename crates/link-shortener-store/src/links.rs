@@ -1,6 +1,6 @@
 use crate::StoreError;
 use ::entity::{link_rules, links, prelude::*};
-use sea_orm::sea_query::OnConflict;
+use sea_orm::sea_query::{Expr, Func};
 use sea_orm::*;
 use uuid::Uuid;
 
@@ -19,9 +19,13 @@ impl<'a> LinkRepository<'a> {
         Ok(Links::find_by_id(id).one(self.db).await?)
     }
 
+    /// Finds a link by slug, ignoring case to match the unique index on `lower(slug)`
     pub async fn find_by_slug(&self, slug: &str) -> crate::Result<Option<LinkWithRules>> {
         Ok(Links::find()
-            .filter(links::Column::Slug.eq(slug))
+            .filter(
+                Expr::expr(Func::lower(Expr::col((Links, links::Column::Slug))))
+                    .eq(Func::lower(Expr::val(slug))),
+            )
             .find_with_related(LinkRules)
             .order_by_asc(link_rules::Column::Position)
             .all(self.db)
@@ -56,20 +60,10 @@ impl<'a> LinkRepository<'a> {
         let slug = active_slug(&link);
         let txn = self.db.begin().await?;
 
-        // insert with on-conflict-do-nothing a duplicate slug then yields no returned row which sea-orm maps to RecordNotFound
-        let model = match Links::insert(link)
-            .on_conflict(
-                OnConflict::column(links::Column::Slug)
-                    .do_nothing()
-                    .to_owned(),
-            )
+        let model = Links::insert(link)
             .exec_with_returning(&txn)
             .await
-        {
-            Ok(model) => model,
-            Err(DbErr::RecordNotFound(_)) => return Err(StoreError::SlugConflict(slug)),
-            Err(err) => return Err(err.into()),
-        };
+            .map_err(|err| slug_conflict(err, slug))?;
 
         let rules = insert_rules(&txn, model.id, rules).await?;
         txn.commit().await?;
@@ -85,14 +79,10 @@ impl<'a> LinkRepository<'a> {
         let slug = active_slug(&link);
         let txn = self.db.begin().await?;
 
-        // update has no on-conflict form so catch the unique violation on the slug
-        let model = match link.update(&txn).await {
-            Ok(model) => model,
-            Err(err) if matches!(err.sql_err(), Some(SqlErr::UniqueConstraintViolation(_))) => {
-                return Err(StoreError::SlugConflict(slug));
-            }
-            Err(err) => return Err(err.into()),
-        };
+        let model = link
+            .update(&txn)
+            .await
+            .map_err(|err| slug_conflict(err, slug))?;
 
         let rules = match rules {
             Some(rules) => {
@@ -139,5 +129,13 @@ fn active_slug(link: &links::ActiveModel) -> String {
     match &link.slug {
         ActiveValue::Set(slug) | ActiveValue::Unchanged(slug) => slug.clone(),
         ActiveValue::NotSet => String::new(),
+    }
+}
+
+/// The only unique index a link write can violate is the one on `lower(slug)`
+fn slug_conflict(err: DbErr, slug: String) -> StoreError {
+    match err.sql_err() {
+        Some(SqlErr::UniqueConstraintViolation(_)) => StoreError::SlugConflict(slug),
+        _ => err.into(),
     }
 }

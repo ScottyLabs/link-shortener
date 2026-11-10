@@ -1,8 +1,17 @@
 use entity::link_rules;
+use quick_cache::sync::Cache;
 use regex::{Regex, RegexBuilder};
 use serde::{Deserialize, Serialize};
+use std::sync::{Arc, LazyLock};
 
 const REGEX_SIZE_LIMIT: usize = 64 * 1024;
+
+/// Maximum number of compiled patterns kept before older ones are evicted
+const REGEX_CACHE_CAPACITY: usize = 1024;
+
+/// Compiles each rule pattern once instead of on every redirect
+static REGEX_CACHE: LazyLock<Cache<String, Arc<Regex>>> =
+    LazyLock::new(|| Cache::new(REGEX_CACHE_CAPACITY));
 
 pub const MAX_PATTERN_LEN: usize = 512;
 
@@ -164,9 +173,11 @@ fn rule_matches(rule: &link_rules::Model, user_agent: &str) -> bool {
         Some(MatchKind::Platform) => {
             Platform::parse(&rule.pattern).is_some_and(|platform| platform.matches(user_agent))
         }
-        Some(MatchKind::Regex) => {
-            compile_regex(&rule.pattern).is_ok_and(|regex| regex.is_match(user_agent))
-        }
+        Some(MatchKind::Regex) => REGEX_CACHE
+            .get_or_insert_with(rule.pattern.as_str(), || {
+                compile_regex(&rule.pattern).map(Arc::new)
+            })
+            .is_ok_and(|regex| regex.is_match(user_agent)),
         None => false,
     }
 }

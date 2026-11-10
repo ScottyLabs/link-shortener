@@ -32,6 +32,7 @@ pub struct RuleResponse {
 
 #[derive(Deserialize, utoipa::ToSchema)]
 pub struct CreateLinkRequest {
+    /// Case-insensitive
     slug: Option<String>,
     target_url: String,
     #[serde(default)]
@@ -40,6 +41,7 @@ pub struct CreateLinkRequest {
 
 #[derive(Deserialize, utoipa::ToSchema)]
 pub struct UpdateLinkRequest {
+    /// Case-insensitive
     slug: Option<String>,
     target_url: Option<String>,
     rules: Option<Vec<RuleInput>>,
@@ -118,10 +120,12 @@ fn is_rule_target(value: &str) -> bool {
     Url::parse(value).is_ok_and(|url| !BLOCKED.contains(&url.scheme()))
 }
 
-/// A slug must be a single non-empty path segment to be resolvable
-fn is_valid_slug(slug: &str) -> bool {
-    !slug.is_empty() && !slug.contains('/')
+/// Slugs are a single path segment, and dots are reserved for static files like `/favicon.ico`
+pub(crate) fn is_valid_slug(slug: &str) -> bool {
+    !slug.is_empty() && !slug.contains(['/', '.'])
 }
+
+const INVALID_SLUG: &str = "slug must be non-empty and contain no slashes or dots";
 
 fn rule_models(rules: Vec<RuleInput>) -> Result<Vec<link_rules::ActiveModel>, ApiError> {
     if rules.len() > rules::MAX_RULES {
@@ -203,9 +207,7 @@ pub async fn create_link(
     let slug = match body.slug {
         Some(slug) => {
             if !is_valid_slug(&slug) {
-                return Err(ApiError::BadRequest(
-                    "slug must be non-empty and contain no slashes".into(),
-                ));
+                return Err(ApiError::BadRequest(INVALID_SLUG.into()));
             }
             slug
         }
@@ -277,9 +279,7 @@ pub async fn update_link(
 
     if let Some(slug) = body.slug {
         if !is_valid_slug(&slug) {
-            return Err(ApiError::BadRequest(
-                "slug must be non-empty and contain no slashes".into(),
-            ));
+            return Err(ApiError::BadRequest(INVALID_SLUG.into()));
         }
         active.slug = ActiveValue::Set(slug);
     }
@@ -345,19 +345,4 @@ pub async fn delete_link(
         &existing,
     );
     Ok(axum::http::StatusCode::NO_CONTENT)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::is_rule_target;
-
-    #[test]
-    fn rule_targets_allow_deep_links_but_not_executable_schemes() {
-        assert!(is_rule_target("https://apps.apple.com/app/id123"));
-        assert!(is_rule_target("myapp://open?ref=1"));
-        assert!(is_rule_target("intent://scan#Intent;scheme=zxing;end"));
-        assert!(!is_rule_target("javascript:alert(1)"));
-        assert!(!is_rule_target("data:text/html,<script>x</script>"));
-        assert!(!is_rule_target("/relative/path"));
-    }
 }

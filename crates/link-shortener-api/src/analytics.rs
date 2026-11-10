@@ -1,13 +1,14 @@
-use crate::rules::contains_ci;
+use crate::{links::is_valid_slug, rules::contains_ci};
 use axum::{
     extract::FromRequestParts,
     http::{HeaderMap, HeaderName, Method, Uri, header, request::Parts},
 };
 use entity::{link_rules, links};
+use percent_encoding::percent_decode_str;
 use posthog_rs::{Client, ClientOptionsBuilder, Event};
 use serde::Serialize;
 use sha2::{Digest, Sha256};
-use std::{convert::Infallible, net::IpAddr};
+use std::{borrow::Cow, convert::Infallible, net::IpAddr};
 use url::Url;
 
 // posthog-js CAMPAIGN_PARAMS
@@ -39,7 +40,7 @@ const ATTRIBUTION_PARAMS: [&str; 25] = [
     "_kx",
 ];
 
-// inapp-spy's user-agent markers, lowercase and matched in order
+// inapp-spy markers in match order
 const IN_APP_BROWSERS: [(&str, &str); 18] = [
     ("fban/messenger", "messenger"),
     ("fb_iab/messenger", "messenger"),
@@ -245,9 +246,16 @@ impl<'a> RequestInfo<'a> {
         }
     }
 
-    pub fn slug(&self) -> Option<&'a str> {
-        let slug = self.uri.path().trim_start_matches('/');
-        (!slug.is_empty() && !slug.contains('/')).then_some(slug)
+    /// Percent-decodes the path into a slug, or returns `None` for paths that can't be slugs, like `/a/b` or `/favicon.ico`
+    pub fn slug(&self) -> Option<Cow<'a, str>> {
+        let raw = self.uri.path().strip_prefix('/')?;
+        let slug = percent_decode_str(raw).decode_utf8().ok()?;
+
+        is_valid_slug(&slug).then_some(slug)
+    }
+
+    pub fn query(&self) -> Option<&'a str> {
+        self.uri.query()
     }
 
     pub fn user_agent(&self) -> Option<&'a str> {

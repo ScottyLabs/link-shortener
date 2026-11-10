@@ -30,3 +30,5 @@ utoipa-axum = "0.2.0"
 utoipa-scalar = { version = "0.3.0", features = ["axum"] }
 uuid = { version = "1.23.0", features = ["v4", "v7", "serde"] }
 url = "2.5.8"
+percent-encoding = "2.3"
+quick_cache = "0.7"

@@ -2326,7 +2326,9 @@ dependencies = [
  "chrono",
  "entity",
  "link-shortener-store",
+ "percent-encoding",
  "posthog-rs",
+ "quick_cache",
  "rand 0.10.1",
  "regex",
  "sea-orm",
@@ -2349,6 +2351,7 @@ name = "link-shortener-store"
 version = "0.1.0"
 dependencies = [
  "entity",
+ "migration",
  "sea-orm",
  "thiserror 2.0.18",
  "tokio",
@@ -3212,6 +3215,18 @@ dependencies = [
  "syn 2.0.118",
  "version_check",
  "yansi",
+]
+
+[[package]]
+name = "quick_cache"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "403c1a912fec895cafb223201e368234842acb9220aaf08ab042ae89ba5f135c"
+dependencies = [
+ "equivalent",
+ "foldhash",
+ "hashbrown 0.17.1",
+ "parking_lot",
 ]
 
 [[package]]
