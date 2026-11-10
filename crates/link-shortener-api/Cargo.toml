@@ -23,7 +23,9 @@ serde = { version = "1.0.228", features = ["derive"] }
 sha2 = "0.10.9"
 tower = "0.5.3"
 tower-http = { version = "0.6.8", features = ["fs", "trace"] }
-tower-sessions = "0.15.0"
+tower-sessions = { version = "0.14", default-features = false, features = [
+  "axum-core",
+] }
 tracing = "0.1.44"
 utoipa = { version = "5.4.0", features = ["axum_extras"] }
 utoipa-axum = "0.2.0"
@@ -32,3 +34,6 @@ uuid = { version = "1.23.0", features = ["v4", "v7", "serde"] }
 url = "2.5.8"
 percent-encoding = "2.3"
 quick_cache = "0.7"
+tower-sessions-redis-store = "0.16"
+fred = { version = "10", features = ["unix-sockets"] }
+tokio = { version = "1", features = ["time"] }

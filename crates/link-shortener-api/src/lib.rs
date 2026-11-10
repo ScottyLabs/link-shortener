@@ -4,13 +4,16 @@ mod error;
 mod links;
 mod redirect;
 mod rules;
+pub mod sessions;
 
 pub use analytics::Analytics;
 use analytics::RequestInfo;
 pub use auth::OidcConfig;
 use auth::{AuthConfig, GroupClaims};
 use redirect::Outcome;
+use sessions::SessionStore;
 
+use anyhow::Context;
 use axum::{
     Extension, Router,
     error_handling::HandleErrorLayer,
@@ -32,9 +35,10 @@ use std::sync::Arc;
 use tower::{ServiceBuilder, ServiceExt};
 use tower_http::{services::ServeDir, trace::TraceLayer};
 use tower_sessions::{
-    Expiry, MemoryStore, Session, SessionManagerLayer,
+    Expiry, Session, SessionManagerLayer,
     cookie::{SameSite, time::Duration},
 };
+use url::Url;
 use utoipa::OpenApi;
 use utoipa_axum::router::OpenApiRouter;
 use utoipa_scalar::{Scalar, Servable};
@@ -92,14 +96,18 @@ struct ApiDoc;
 
 pub async fn router(
     store: Arc<Store>,
+    sessions: SessionStore,
     oidc_config: OidcConfig,
     analytics: Arc<Analytics>,
 ) -> anyhow::Result<Router> {
-    // Session
-    let session_store = MemoryStore::default();
+    // local development serves the app over plain http
+    let secure = Url::parse(&oidc_config.app_url)
+        .context("APP_URL must be a valid URL")?
+        .scheme()
+        == "https";
     let session_layer = ServiceBuilder::new().layer(
-        SessionManagerLayer::new(session_store)
-            .with_secure(false)
+        SessionManagerLayer::new(sessions)
+            .with_secure(secure)
             .with_same_site(SameSite::Lax)
             .with_expiry(Expiry::OnInactivity(Duration::hours(1))),
     );

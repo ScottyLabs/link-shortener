@@ -25,6 +25,7 @@ async fn main() -> Result<()> {
         .secrets;
 
     let database_url = std::env::var("DATABASE_URL").context("DATABASE_URL must be set")?;
+    let valkey_url = std::env::var("VALKEY_URL").context("VALKEY_URL must be set")?;
     let port = std::env::var("PORT").unwrap_or_else(|_| "3000".into());
 
     let oidc_config = OidcConfig {
@@ -54,6 +55,9 @@ async fn main() -> Result<()> {
     migration::Migrator::up(&db, None).await?;
     tracing::info!("migrations applied");
 
+    let sessions = link_shortener_api::sessions::connect(&valkey_url).await?;
+    tracing::info!("connected to valkey");
+
     let analytics = Arc::new(
         Analytics::new(
             std::env::var("PUBLIC_POSTHOG_KEY").ok(),
@@ -64,7 +68,7 @@ async fn main() -> Result<()> {
     );
 
     let store = Arc::new(Store::new(db));
-    let app = link_shortener_api::router(store, oidc_config, analytics.clone()).await?;
+    let app = link_shortener_api::router(store, sessions, oidc_config, analytics.clone()).await?;
 
     let addr = format!("0.0.0.0:{port}");
     let listener = tokio::net::TcpListener::bind(&addr).await?;

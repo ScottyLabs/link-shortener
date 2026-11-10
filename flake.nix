@@ -43,6 +43,7 @@
               dirs = [ "sites/web" ];
             };
             postgres.enable = true;
+            valkey.enable = true;
             ricochet = {
               enable = true;
               appUrl = "http://localhost:5173";
