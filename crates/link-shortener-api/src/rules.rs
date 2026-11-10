@@ -1,7 +1,9 @@
+use axum::Json;
 use entity::link_rules;
 use quick_cache::sync::Cache;
 use regex::{Regex, RegexBuilder};
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeSet;
 use std::sync::{Arc, LazyLock};
 
 const REGEX_SIZE_LIMIT: usize = 64 * 1024;
@@ -13,8 +15,14 @@ const REGEX_CACHE_CAPACITY: usize = 1024;
 static REGEX_CACHE: LazyLock<Cache<String, Arc<Regex>>> =
     LazyLock::new(|| Cache::new(REGEX_CACHE_CAPACITY));
 
-pub const MAX_PATTERN_LEN: usize = 512;
+static CRAWLER_TAGS: LazyLock<BTreeSet<&'static str>> = LazyLock::new(|| {
+    crawler_user_agents::crawlers()
+        .iter()
+        .flat_map(|crawler| crawler.tags.iter().map(String::as_str))
+        .collect()
+});
 
+pub const MAX_PATTERN_LEN: usize = 512;
 pub const MAX_RULES: usize = 32;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, utoipa::ToSchema)]
@@ -22,6 +30,7 @@ pub const MAX_RULES: usize = 32;
 pub enum MatchKind {
     Platform,
     Regex,
+    Crawler,
 }
 
 impl MatchKind {
@@ -29,6 +38,7 @@ impl MatchKind {
         match self {
             Self::Platform => "platform",
             Self::Regex => "regex",
+            Self::Crawler => "crawler",
         }
     }
 
@@ -36,6 +46,7 @@ impl MatchKind {
         match value {
             "platform" => Some(Self::Platform),
             "regex" => Some(Self::Regex),
+            "crawler" => Some(Self::Crawler),
             _ => None,
         }
     }
@@ -115,21 +126,7 @@ impl Platform {
                         .into_iter()
                         .any(|platform| platform.matches(user_agent))
             }
-            Self::Bot => [
-                "bot",
-                "crawler",
-                "spider",
-                "slurp",
-                "facebookexternalhit",
-                "whatsapp",
-                "headlesschrome",
-                "curl/",
-                "wget/",
-                "python-requests",
-                "go-http-client",
-            ]
-            .iter()
-            .any(|marker| contains_ci(user_agent, marker)),
+            Self::Bot => crawler_user_agents::is_crawler(user_agent),
         }
     }
 }
@@ -165,6 +162,16 @@ pub fn validate_pattern(kind: MatchKind, pattern: &str) -> Result<(), String> {
         MatchKind::Regex => compile_regex(pattern)
             .map(|_| ())
             .map_err(|e| format!("invalid regex: {e}")),
+        MatchKind::Crawler => {
+            if CRAWLER_TAGS.contains(pattern) {
+                Ok(())
+            } else {
+                let known = CRAWLER_TAGS.iter().copied().collect::<Vec<_>>().join(", ");
+                Err(format!(
+                    "unknown crawler tag {pattern:?}, expected one of: {known}"
+                ))
+            }
+        }
     }
 }
 
@@ -178,6 +185,8 @@ fn rule_matches(rule: &link_rules::Model, user_agent: &str) -> bool {
                 compile_regex(&rule.pattern).map(Arc::new)
             })
             .is_ok_and(|regex| regex.is_match(user_agent)),
+        Some(MatchKind::Crawler) => crawler_user_agents::matching_crawlers(user_agent)
+            .any(|crawler| crawler.tags.contains(&rule.pattern)),
         None => false,
     }
 }
@@ -190,4 +199,14 @@ pub fn matching_rule(
     rules
         .into_iter()
         .find(|rule| rule_matches(rule, user_agent))
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/crawler-tags",
+    tag = "links",
+    responses((status = OK, body = Vec<String>))
+)]
+pub async fn crawler_tags() -> Json<Vec<&'static str>> {
+    Json(CRAWLER_TAGS.iter().copied().collect())
 }

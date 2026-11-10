@@ -172,6 +172,7 @@ pub async fn router(
         .routes(utoipa_axum::routes!(links::create_link))
         .routes(utoipa_axum::routes!(links::update_link))
         .routes(utoipa_axum::routes!(links::delete_link))
+        .routes(utoipa_axum::routes!(rules::crawler_tags))
         .routes(utoipa_axum::routes!(auth::me))
         .routes(utoipa_axum::routes!(health))
         .route(

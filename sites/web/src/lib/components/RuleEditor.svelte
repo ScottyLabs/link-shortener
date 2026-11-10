@@ -1,3 +1,9 @@
+<script lang="ts" module>
+    import { api } from "../api/client";
+
+    const crawlerTags = api.GET("/api/crawler-tags").then(({ data }) => data ?? []);
+</script>
+
 <script lang="ts">
     import type { components } from "../api/schema";
 
@@ -27,9 +33,15 @@
         rules = reordered;
     }
 
-    function setKind(index: number, kind: Rule["kind"]) {
+    async function setKind(index: number, kind: Rule["kind"]) {
         rules[index].kind = kind;
-        rules[index].pattern = kind === "platform" ? "ios" : "";
+        if (kind === "platform") {
+            rules[index].pattern = "ios";
+        } else if (kind === "crawler") {
+            rules[index].pattern = (await crawlerTags)[0] ?? "";
+        } else {
+            rules[index].pattern = "";
+        }
     }
 </script>
 
@@ -45,6 +57,7 @@
             >
                 <option value="platform">Platform</option>
                 <option value="regex">Regex</option>
+                <option value="crawler">Crawler</option>
             </select>
 
             {#if rule.kind === "platform"}
@@ -53,6 +66,14 @@
                         <option value={platform}>{platform}</option>
                     {/each}
                 </select>
+            {:else if rule.kind === "crawler"}
+                {#await crawlerTags then tags}
+                    <select bind:value={rules[index].pattern}>
+                        {#each tags as tag (tag)}
+                            <option value={tag}>{tag}</option>
+                        {/each}
+                    </select>
+                {/await}
             {:else}
                 <input
                     type="text"

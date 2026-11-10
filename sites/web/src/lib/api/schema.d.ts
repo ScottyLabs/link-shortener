@@ -4,6 +4,22 @@
  */
 
 export interface paths {
+  "/api/crawler-tags": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["crawler_tags"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/health": {
     parameters: {
       query?: never;
@@ -133,7 +149,7 @@ export interface components {
       updated_at: string;
     };
     /** @enum {string} */
-    MatchKind: "platform" | "regex";
+    MatchKind: "platform" | "regex" | "crawler";
     RuleInput: {
       kind: components["schemas"]["MatchKind"];
       pattern: string;
@@ -172,6 +188,25 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+  crawler_tags: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": string[];
+        };
+      };
+    };
+  };
   health: {
     parameters: {
       query?: never;

@@ -6,10 +6,11 @@ The [API reference](https://cmu.lol/api/scalar) lists every endpoint with its pa
 
 Links can have rules that redirect to different targets based on the visitor's `User-Agent`. If more than one rule matches a visitor, the one highest in the list wins.
 
-A rule matches either a platform or a regular expression:
+A rule matches a platform, a regular expression, or a crawler category:
 
 - Platforms are `ios`, `android`, `mobile`, `desktop`, `windows`, `macos`, `linux`, `chromeos`, and `bot`.
 - Regular expressions are case-insensitive and can match anywhere in the user agent. For example, `CriOS/1[0-9]{2}` matches Chrome 100 through 199 on iOS.
+- Crawler categories match the tags that [monperrus/crawler-user-agents](https://github.com/monperrus/crawler-user-agents) assigns to each crawler, like `ai-crawler` or `search-engine`. The full set of tags is available from `GET /api/crawler-tags`.
 
 The main target has to be an `http` or `https` URL, but a rule's target can be an app link like `myapp://` or `intent://`.
 
