@@ -1,11 +1,29 @@
-# Introduction
+# Setup
 
-A demo link shortener for ScottyLabs, showcasing the full deployment stack:
+## Getting started
 
-- Rust backend with Axum, Sea-ORM, and utoipa (OpenAPI)
-- Keycloak OIDC authentication via axum-oidc through the shared ScottyLabs OAuth relay
-- SvelteKit frontend (Svelte 5, static adapter) with Vite and openapi-fetch, built with the Deno toolchain
-- PostgreSQL 18 with pg_uuidv7
-- Nix flake built with the shared scottylabs helpers (crane for the backend, a Deno task builder for the web app, Zensical for docs) and deployed by [kennel](https://docs.kennel.scottylabs.org/guides/deploying/)
+Install Lix and log in to OpenBao by following kennel's [local development](https://docs.kennel.scottylabs.org/guides/local-development/#installing-nix) and [secrets](https://docs.kennel.scottylabs.org/guides/secrets/#local-development) guides, then enter the dev shell with `nix develop`.
 
-Authenticated users can create, manage, and delete short links. Anyone can follow a short link to its target URL.
+Start PostgreSQL and the OAuth relay in the background:
+
+```bash
+pitchfork start --local
+```
+
+Run the backend and frontend in separate terminals:
+
+```bash
+# Backend API on port 3000, applies pending migrations on startup
+cargo run -p link-shortener
+
+# Frontend dev server on port 5173 with hot reloading
+cd sites/web && deno task dev
+```
+
+The shell also provides these helper commands:
+
+- `generate-api` regenerates the typed API client from the running backend.
+- `migration NAME` scaffolds a new migration.
+- `migrate` applies pending migrations manually.
+- `generate-entities` regenerates the SeaORM entity code from the database schema.
+- `docs` serves this documentation locally.

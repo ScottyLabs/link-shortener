@@ -1,81 +1,34 @@
 # Architecture
 
-## Crate structure
-
-```
-crates/
-  link-shortener/         Entry point, wires everything together
-  link-shortener-api/     Axum routes, OIDC auth, OpenAPI via utoipa
-  link-shortener-store/   Sea-ORM repository layer
-  entity/                 Generated Sea-ORM entity models (do not edit)
-  migration/              Sea-ORM database migrations
-```
-
-## Auth flow
-
-1. The user clicks "Log in" on the frontend, which links to `/auth/login`.
-1. `/auth/login` sits behind `OidcLoginLayer`, so axum-oidc redirects the browser to Keycloak. The redirect URI registered with the client is the shared OAuth relay, and the OAuth state carries a CSRF token plus the app callback to return to (`{APP_URL}/auth/callback`).
-1. The user authenticates with Keycloak.
-1. Keycloak redirects to the OAuth relay with an authorization code.
-1. The relay reads the return target from the state and forwards the code to `{APP_URL}/auth/callback`.
-1. `/auth/callback` exchanges the code for tokens and creates a server side session.
-1. The browser returns to `/auth/login`, which now sees the session and redirects to the app root.
-1. The frontend calls `/api/me` and receives user info from the session.
-
-Logging out is a `GET /auth/logout` that clears the session and redirects to the app root. The Keycloak SSO session is left intact, so signing back in does not require re-entering credentials.
-
-## API design
-
-Routes are registered with `utoipa-axum` for automatic OpenAPI schema generation. The schema is served at `/api/openapi.json` and is browsable via Scalar at `/api/scalar`.
-
-API routes require a valid session. The `CurrentUser` extractor returns `401` when the session is missing, so the SPA can detect auth state over XHR without being redirected:
-
-- `GET /api/me`
-- `GET /api/links`
-- `POST /api/links`
-- `PATCH /api/links/{id}`
-- `DELETE /api/links/{id}`
-
-Auth routes drive the OIDC flow:
-
-- `GET /auth/login` (behind `OidcLoginLayer`; forces login, then redirects to the app root)
-- `GET /auth/logout` (clears the session, then redirects to the app root)
-- `GET /auth/callback` (OIDC redirect handler)
-
-Public routes do not require authentication:
-
-- `GET /api/health`
-- `GET /{slug}` (slug redirect, handled by the router fallback)
+The [API reference](https://cmu.lol/api/scalar) lists every endpoint with its parameters and responses.
 
 ## User-agent rules
 
-A link owns an ordered list of rules next to its `target_url`. On a redirect the rules are tried top to bottom against the request `User-Agent`, and the first match decides the target. The link's own `target_url` is the fallback, including for clients that send no `User-Agent`. Redirects carry `Vary: User-Agent` so caches keep the variants apart.
+Links can have rules that redirect to different targets based on the visitor's `User-Agent`. If more than one rule matches a visitor, the one highest in the list wins.
 
-There are two kinds of rule:
+A rule matches either a platform or a regular expression:
 
-- `platform` names a curated family: `ios`, `android`, `mobile`, `desktop`, `windows`, `macos`, `linux`, `chromeos`, `bot`. iPadOS in desktop mode is indistinguishable from macOS on the server, so it classifies as `macos`.
-- `regex` is an unanchored, case-insensitive regular expression, for example `CriOS/1[0-9]{2}` to single out Chrome on iOS.
+- Platforms are `ios`, `android`, `mobile`, `desktop`, `windows`, `macos`, `linux`, `chromeos`, and `bot`.
+- Regular expressions are case-insensitive and can match anywhere in the user agent. For example, `CriOS/1[0-9]{2}` matches Chrome 100 through 199 on iOS.
 
-A rule target may use an app deep-link scheme such as `myapp://` or `intent://`.
-
-## Static files and slug redirects
-
-In production the backend serves the built SPA itself. The router fallback first checks whether the path is a single segment matching a slug in the database; if so it returns a 307 redirect to the target picked by the link's user-agent rules. Otherwise, when `STATIC_DIR` is set, a `ServeDir` serves the static files, and when it is unset, as in local development where the Vite dev server serves the SPA, the fallback returns a 404.
+The main target has to be an `http` or `https` URL, but a rule's target can be an app link like `myapp://` or `intent://`.
 
 ## Analytics
 
-The backend sends these events to PostHog:
+The server sends these events to PostHog:
 
-- `link_visited` on every redirect, with the slug, link, matched rule, and resolved target
-- `link_not_found` when a single-segment path matches no link and no static file
-- `link_created`, `link_updated`, and `link_deleted` from the admin API
+- `link_visited` when someone follows a link, with the slug, the matched rule, and the target they were sent to
+- `link_not_found` when a path doesn't match any link or static file
+- `link_created`, `link_updated`, and `link_deleted` when someone changes a link
 
-Visit events are anonymous, keyed by a hash of the visitor's IP, host, and user agent, and also record the referrer, `Accept-Language`, `utm_*` and ad click ID query parameters, in-app browser markers, `Sec-Fetch-Site`, prefetches, and `Sec-GPC`. Admin events are identified by the staff member's OIDC subject.
+Visitor events use a hash of the visitor's IP address, host, and user agent as the distinct ID. Besides PostHog's standard properties like `$referrer`, `$browser_language`, and the `utm_*` and ad click ID parameters, they record:
 
-The frontend sends its own events with `posthog-js` and identifies users by their OIDC subject, the same ID the admin events use.
+| Property | Value |
+| -- | -- |
+| `in_app_browser` | The app whose built-in browser opened the link, such as `instagram` or `tiktok` |
+| `in_app_package` | The Android package name from `X-Requested-With` |
+| `fetch_site` | The `Sec-Fetch-Site` header |
+| `is_prefetch` | Whether the request was a prefetch |
+| `gpc` | Whether the visitor sent a Global Privacy Control signal |
 
-## Frontend
-
-The frontend is a SvelteKit app on Svelte 5, built with the static adapter as a client-rendered SPA on the Deno toolchain. Auth state is determined by calling `/api/me` on mount. The Vite dev server proxies `/api` and `/auth` to the backend on port 3000.
-
-Once the backend is running, `deno task generate-api` generates TypeScript types from the OpenAPI schema via `openapi-typescript`. The `openapi-fetch` library provides a typed client for making API calls.
+Link changes and frontend events both use the user's OIDC subject as the distinct ID and show up under the same person in PostHog.
