@@ -7,6 +7,8 @@ export default defineConfig({
     proxy: {
       "/api": "http://localhost:3000",
       "/auth": "http://localhost:3000",
+      // forward slug redirects to the backend
+      "^/[^/?]+(\\?|$)": "http://localhost:3000",
     },
   },
 });
