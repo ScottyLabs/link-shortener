@@ -224,9 +224,21 @@ pub async fn router(
     Ok(app)
 }
 
-#[utoipa::path(get, path = "/api/health", tag = "health", responses((status = OK, body = str)))]
-async fn health() -> &'static str {
-    "OK"
+/// Reports whether the server can reach its database
+#[utoipa::path(
+    get,
+    path = "/api/health",
+    tag = "health",
+    responses((status = OK, body = str), (status = SERVICE_UNAVAILABLE, body = str))
+)]
+async fn health(State(store): State<Arc<Store>>) -> (StatusCode, &'static str) {
+    match store.db().ping().await {
+        Ok(()) => (StatusCode::OK, "OK"),
+        Err(err) => {
+            tracing::error!(%err, "health check could not reach the database");
+            (StatusCode::SERVICE_UNAVAILABLE, "database unavailable")
+        }
+    }
 }
 
 /// Login entry point that runs OIDC then returns to the app root
