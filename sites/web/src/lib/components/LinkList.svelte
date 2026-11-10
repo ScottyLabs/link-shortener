@@ -6,10 +6,7 @@
     type Link = components["schemas"]["LinkResponse"];
     type Rule = components["schemas"]["RuleInput"];
 
-    let {
-        isAdmin = false,
-        canModify = false,
-    }: { isAdmin?: boolean; canModify?: boolean } = $props();
+    let { isAdmin = false }: { isAdmin?: boolean } = $props();
 
     let links: Link[] = $state([]);
     let loading = $state(true);
@@ -116,10 +113,8 @@
                                 {/each}
                             </ul>
                         {/if}
-                        {#if canModify}
-                            <button onclick={() => startEdit(link)}>Edit</button>
-                            <button onclick={() => deleteLink(link.id)}>Delete</button>
-                        {/if}
+                        <button onclick={() => startEdit(link)}>Edit</button>
+                        <button onclick={() => deleteLink(link.id)}>Delete</button>
                     {/if}
                 </li>
             {/each}

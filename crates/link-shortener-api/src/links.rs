@@ -6,11 +6,12 @@ use axum::{
     Extension, Json,
     extract::{Path, State},
 };
+use chrono::{DateTime, Utc};
 use entity::{link_rules, links};
-use link_shortener_store::{LinkWithRules, Store};
+use link_shortener_store::{LinkDetails, Store};
 use rand::RngExt;
 use sea_orm::ActiveValue;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::sync::Arc;
 use url::Url;
 use uuid::Uuid;
@@ -37,6 +38,9 @@ pub struct CreateLinkRequest {
     target_url: String,
     #[serde(default)]
     rules: Vec<RuleInput>,
+    #[serde(default)]
+    paused: bool,
+    expires_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Deserialize, utoipa::ToSchema)]
@@ -45,6 +49,20 @@ pub struct UpdateLinkRequest {
     slug: Option<String>,
     target_url: Option<String>,
     rules: Option<Vec<RuleInput>>,
+    paused: Option<bool>,
+    /// Omit to keep the current expiry, or send null to remove it
+    #[serde(default, deserialize_with = "present")]
+    #[schema(value_type = Option<DateTime<Utc>>)]
+    expires_at: Option<Option<DateTime<Utc>>>,
+}
+
+/// Distinguishes an explicit null, `Some(None)`, from an omitted field, `None`
+fn present<'de, D, T>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
+where
+    D: Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    Option::deserialize(deserializer).map(Some)
 }
 
 #[derive(Serialize, utoipa::ToSchema)]
@@ -54,6 +72,8 @@ pub struct LinkResponse {
     target_url: String,
     owner_name: Option<String>,
     rules: Vec<RuleResponse>,
+    paused: bool,
+    expires_at: Option<DateTime<Utc>>,
     created_at: chrono::NaiveDateTime,
     updated_at: chrono::NaiveDateTime,
 }
@@ -78,28 +98,30 @@ impl TryFrom<link_rules::Model> for RuleResponse {
     }
 }
 
-impl TryFrom<LinkWithRules> for LinkResponse {
+impl TryFrom<LinkDetails> for LinkResponse {
     type Error = ApiError;
 
-    fn try_from((link, rules): LinkWithRules) -> Result<Self, Self::Error> {
+    fn try_from(LinkDetails { link, owner, rules }: LinkDetails) -> Result<Self, Self::Error> {
         Ok(Self {
             id: link.id,
             slug: link.slug,
             target_url: link.target_url,
-            owner_name: link.owner_name,
+            owner_name: owner.and_then(|owner| owner.name),
             rules: rules
                 .into_iter()
                 .map(RuleResponse::try_from)
                 .collect::<Result<_, _>>()?,
+            paused: link.paused,
+            expires_at: link.expires_at.map(|expires_at| expires_at.and_utc()),
             created_at: link.created_at,
             updated_at: link.updated_at,
         })
     }
 }
 
-/// Admins may modify any link; everyone else only their own, and only while in the project group
+/// Admins may modify any link, and everyone else only their own
 fn can_modify(user: &CurrentUser, auth: &AuthConfig, link: &links::Model) -> bool {
-    user.is_admin(auth) || (link.owner_id == user.subject && user.in_project_group(auth))
+    user.is_admin(auth) || link.owner_id == user.subject
 }
 
 fn generate_slug() -> String {
@@ -189,15 +211,10 @@ pub async fn list_links(
 pub async fn create_link(
     user: CurrentUser,
     request: RequestMeta,
-    Extension(auth): Extension<Arc<AuthConfig>>,
     Extension(analytics): Extension<Arc<Analytics>>,
     State(store): State<Arc<Store>>,
     Json(body): Json<CreateLinkRequest>,
 ) -> Result<(axum::http::StatusCode, Json<LinkResponse>), ApiError> {
-    if !user.can_create(&auth) {
-        return Err(ApiError::Forbidden);
-    }
-
     if !is_http_url(&body.target_url) {
         return Err(ApiError::BadRequest(
             "target_url must be an http or https URL".into(),
@@ -216,11 +233,14 @@ pub async fn create_link(
 
     let rules = rule_models(body.rules)?;
 
+    store.users().upsert(&user.subject, &user.name).await?;
+
     let link = links::ActiveModel {
         slug: ActiveValue::Set(slug),
         target_url: ActiveValue::Set(body.target_url),
-        owner_id: ActiveValue::Set(user.subject),
-        owner_name: ActiveValue::Set(Some(user.name)),
+        owner_id: ActiveValue::Set(user.subject.clone()),
+        paused: ActiveValue::Set(body.paused),
+        expires_at: ActiveValue::Set(body.expires_at.map(|expires_at| expires_at.naive_utc())),
         ..Default::default()
     };
 
@@ -230,9 +250,9 @@ pub async fn create_link(
     analytics.link_changed(
         LinkChange::Created { rule_count },
         &request.info(),
-        &result.0.owner_id,
-        result.0.owner_name.as_deref(),
-        &result.0,
+        &user.subject,
+        Some(&user.name),
+        &result.link,
     );
 
     Ok((
@@ -291,6 +311,12 @@ pub async fn update_link(
         }
         active.target_url = ActiveValue::Set(target_url);
     }
+    if let Some(paused) = body.paused {
+        active.paused = ActiveValue::Set(paused);
+    }
+    if let Some(expires_at) = body.expires_at {
+        active.expires_at = ActiveValue::Set(expires_at.map(|expires_at| expires_at.naive_utc()));
+    }
 
     let rules = body.rules.map(rule_models).transpose()?;
 
@@ -306,7 +332,7 @@ pub async fn update_link(
         &request.info(),
         &user.subject,
         Some(&user.name),
-        &result.0,
+        &result.link,
     );
     Ok(Json(LinkResponse::try_from(result)?))
 }

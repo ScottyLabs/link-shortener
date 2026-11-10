@@ -160,7 +160,6 @@ pub async fn router(
         ));
 
     let auth_config = Arc::new(AuthConfig {
-        project_group: oidc_config.project_group,
         project_admin_group: oidc_config.project_admin_group,
     });
 

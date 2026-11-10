@@ -1,12 +1,12 @@
 use crate::{
-    analytics::{Analytics, RequestInfo},
+    analytics::{Analytics, Inactive, RequestInfo},
     rules,
 };
 use axum::{
     http::header,
     response::{IntoResponse, Redirect, Response},
 };
-use link_shortener_store::Store;
+use link_shortener_store::{LinkDetails, Store};
 use posthog_rs::Event;
 use std::borrow::Cow;
 use url::{Url, form_urlencoded};
@@ -24,13 +24,22 @@ pub async fn redirect(store: &Store, analytics: &Analytics, request: &RequestInf
     };
 
     match store.links().find_by_slug(&slug).await {
-        Ok(Some((link, link_rules))) => {
+        Ok(Some(LinkDetails {
+            link,
+            owner,
+            rules: link_rules,
+        })) => {
+            if let Some(reason) = Inactive::of(&link, chrono::Utc::now()) {
+                return Outcome::Missing(analytics.link_inactive(request, &link, reason));
+            }
+
             let rule = rules::matching_rule(link_rules, request.user_agent());
             let target = rule
                 .as_ref()
                 .map_or(link.target_url.as_str(), |rule| rule.target_url.as_str());
+            let owner_name = owner.as_ref().and_then(|owner| owner.name.as_deref());
 
-            analytics.link_visited(request, &link, rule.as_ref(), target);
+            analytics.link_visited(request, &link, owner_name, rule.as_ref(), target);
 
             let target = with_visitor_query(target, request.query());
             Outcome::Redirect(redirect_response(&target))
@@ -51,7 +60,7 @@ fn redirect_response(target: &str) -> Response {
         .into_response()
 }
 
-/// Appends the visitor's query string to the target, dropping any target parameter the visitor also sets so the visitor's value wins. Pairs are copied verbatim to keep each side's percent-encoding intact.
+/// Adds the visitor's query parameters to the target, overriding any the target sets with the same name
 fn with_visitor_query<'a>(target: &'a str, query: Option<&str>) -> Cow<'a, str> {
     let Some(query) = query.filter(|query| !query.is_empty()) else {
         return Cow::Borrowed(target);

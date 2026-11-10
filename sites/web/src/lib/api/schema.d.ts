@@ -11,6 +11,7 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
+    /** Reports whether the server can reach its database */
     get: operations["health"];
     put?: never;
     post?: never;
@@ -59,6 +60,7 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
+    /** Returns the signed-in user and saves their current name */
     get: operations["me"];
     put?: never;
     post?: never;
@@ -107,16 +109,23 @@ export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
     CreateLinkRequest: {
+      /** Format: date-time */
+      expires_at?: string | null;
+      paused?: boolean;
       rules?: components["schemas"]["RuleInput"][];
+      /** @description Case-insensitive */
       slug?: string | null;
       target_url: string;
     };
     LinkResponse: {
       /** Format: date-time */
       created_at: string;
+      /** Format: date-time */
+      expires_at?: string | null;
       /** Format: uuid */
       id: string;
       owner_name?: string | null;
+      paused: boolean;
       rules: components["schemas"]["RuleResponse"][];
       slug: string;
       target_url: string;
@@ -138,12 +147,18 @@ export interface components {
       target_url: string;
     };
     UpdateLinkRequest: {
+      /**
+       * Format: date-time
+       * @description Omit to keep the current expiry, or send null to remove it
+       */
+      expires_at?: string | null;
+      paused?: boolean | null;
       rules?: components["schemas"]["RuleInput"][] | null;
+      /** @description Case-insensitive */
       slug?: string | null;
       target_url?: string | null;
     };
     UserInfo: {
-      can_create: boolean;
       is_admin: boolean;
       name: string;
       subject: string;
@@ -167,6 +182,14 @@ export interface operations {
     requestBody?: never;
     responses: {
       200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      503: {
         headers: {
           [name: string]: unknown;
         };

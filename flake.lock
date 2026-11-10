@@ -309,11 +309,11 @@
         "uv2nix": "uv2nix"
       },
       "locked": {
-        "lastModified": 1794348552,
-        "narHash": "sha256-B0MXQR5PcVkLeIQ7hOf87gOGbQ8g8+anKmChDt3ym2Y=",
+        "lastModified": 1794351285,
+        "narHash": "sha256-ptBD6w+A74BKJW4HfPNMTZ0omYDNPImCxBO9Tzx2U4Q=",
         "ref": "refs/heads/main",
-        "rev": "c720cc5a9a5d647d64ce33f5c82ee42ff94e55c4",
-        "revCount": 446,
+        "rev": "00cb274a0a4debe3aa015433e487bc1aaaab812b",
+        "revCount": 447,
         "type": "git",
         "url": "https://git.cmu.dev/ScottyLabs/kennel"
       },

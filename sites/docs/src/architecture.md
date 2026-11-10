@@ -19,6 +19,7 @@ The server sends these events to PostHog:
 
 - `link_visited` when someone follows a link, with the slug, the matched rule, and the target they were sent to
 - `link_not_found` when a path doesn't match any link or static file
+- `link_inactive` when someone follows a paused or expired link, with the slug and a `reason` of `paused` or `expired`
 - `link_created`, `link_updated`, and `link_deleted` when someone changes a link
 
 Visitor events use a hash of the visitor's IP address, host, and user agent as the distinct ID. Besides PostHog's standard properties like `$referrer`, `$browser_language`, and the `utm_*` and ad click ID parameters, they record:

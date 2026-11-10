@@ -1,21 +1,20 @@
 mod common;
 
 use entity::{link_rules, links};
-use link_shortener_store::Store;
+use link_shortener_store::LinkDetails;
 use sea_orm::{ActiveValue::Set, ColumnTrait, EntityTrait, QueryFilter};
 use uuid::Uuid;
 
 #[tokio::test]
 #[ignore = "requires a postgres DATABASE_URL with pg_uuidv7"]
 async fn rules_round_trip_in_order_and_follow_their_link() {
-    let db = common::connect().await;
-    let store = Store::new(db);
+    let store = common::store().await;
     let slug = format!("app-{}", Uuid::now_v7());
 
     let link = links::ActiveModel {
         slug: Set(slug.clone()),
         target_url: Set("https://example.com/web".to_owned()),
-        owner_id: Set("tester".to_owned()),
+        owner_id: Set(common::OWNER.to_owned()),
         ..Default::default()
     };
     let rule = |kind: &str, pattern: &str, target: &str| link_rules::ActiveModel {
@@ -25,7 +24,11 @@ async fn rules_round_trip_in_order_and_follow_their_link() {
         ..Default::default()
     };
 
-    let (created, rules) = store
+    let LinkDetails {
+        link: created,
+        rules,
+        ..
+    } = store
         .links()
         .create(
             link,
@@ -44,12 +47,13 @@ async fn rules_round_trip_in_order_and_follow_their_link() {
         "positions follow the given order",
     );
 
-    let (_, fetched) = store
+    let fetched = store
         .links()
         .find_by_slug(&slug)
         .await
         .expect("find")
-        .expect("link exists");
+        .expect("link exists")
+        .rules;
     assert_eq!(
         fetched
             .iter()
@@ -60,14 +64,15 @@ async fn rules_round_trip_in_order_and_follow_their_link() {
 
     let mut rename: links::ActiveModel = created.clone().into();
     rename.target_url = Set("https://example.com/new".to_owned());
-    let (_, untouched) = store
+    let untouched = store
         .links()
         .update(rename, None)
         .await
-        .expect("update without rules");
+        .expect("update without rules")
+        .rules;
     assert_eq!(untouched.len(), 3);
 
-    let (_, replaced) = store
+    let replaced = store
         .links()
         .update(
             created.clone().into(),
@@ -78,7 +83,8 @@ async fn rules_round_trip_in_order_and_follow_their_link() {
             )]),
         )
         .await
-        .expect("update with rules");
+        .expect("update with rules")
+        .rules;
     assert_eq!(replaced.len(), 1);
     assert_eq!(replaced[0].position, 0);
     assert_eq!(replaced[0].pattern, "mobile");

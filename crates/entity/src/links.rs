@@ -18,19 +18,33 @@ pub struct Model {
     pub owner_id: String,
     pub created_at: DateTime,
     pub updated_at: DateTime,
-    #[sea_orm(column_type = "Text", nullable)]
-    pub owner_name: Option<String>,
+    pub paused: bool,
+    pub expires_at: Option<DateTime>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
     #[sea_orm(has_many = "super::link_rules::Entity")]
     LinkRules,
+    #[sea_orm(
+        belongs_to = "super::users::Entity",
+        from = "Column::OwnerId",
+        to = "super::users::Column::Id",
+        on_update = "NoAction",
+        on_delete = "NoAction"
+    )]
+    Users,
 }
 
 impl Related<super::link_rules::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::LinkRules.def()
+    }
+}
+
+impl Related<super::users::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Users.def()
     }
 }
 

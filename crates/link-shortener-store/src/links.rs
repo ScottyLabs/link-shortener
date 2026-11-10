@@ -1,10 +1,18 @@
 use crate::StoreError;
-use ::entity::{link_rules, links, prelude::*};
+use ::entity::{link_rules, links, prelude::*, users};
 use sea_orm::sea_query::{Expr, Func};
 use sea_orm::*;
 use uuid::Uuid;
 
-pub type LinkWithRules = (links::Model, Vec<link_rules::Model>);
+/// A link with its owner and its rules in priority order
+#[derive(Debug)]
+pub struct LinkDetails {
+    pub link: links::Model,
+    pub owner: Option<users::Model>,
+    pub rules: Vec<link_rules::Model>,
+}
+
+type DetailsQuery = SelectThree<Links, Users, LinkRules, TopologyStar>;
 
 pub struct LinkRepository<'a> {
     db: &'a DatabaseConnection,
@@ -20,43 +28,51 @@ impl<'a> LinkRepository<'a> {
     }
 
     /// Finds a link by slug, ignoring case to match the unique index on `lower(slug)`
-    pub async fn find_by_slug(&self, slug: &str) -> crate::Result<Option<LinkWithRules>> {
-        Ok(Links::find()
-            .filter(
-                Expr::expr(Func::lower(Expr::col((Links, links::Column::Slug))))
-                    .eq(Func::lower(Expr::val(slug))),
-            )
-            .find_with_related(LinkRules)
-            .order_by_asc(link_rules::Column::Position)
-            .all(self.db)
-            .await?
-            .pop())
+    pub async fn find_by_slug(&self, slug: &str) -> crate::Result<Option<LinkDetails>> {
+        let query = details_query().filter(
+            Expr::expr(Func::lower(Expr::col((Links, links::Column::Slug))))
+                .eq(Func::lower(Expr::val(slug))),
+        );
+
+        Ok(self.load(query).await?.pop())
     }
 
-    pub async fn list_by_owner(&self, owner_id: &str) -> crate::Result<Vec<LinkWithRules>> {
-        Ok(Links::find()
-            .filter(links::Column::OwnerId.eq(owner_id))
-            .find_with_related(LinkRules)
-            .order_by_desc(links::Column::CreatedAt)
-            .order_by_asc(link_rules::Column::Position)
-            .all(self.db)
-            .await?)
+    pub async fn list_by_owner(&self, owner_id: &str) -> crate::Result<Vec<LinkDetails>> {
+        self.load(
+            details_query()
+                .filter(links::Column::OwnerId.eq(owner_id))
+                .order_by_desc(links::Column::CreatedAt),
+        )
+        .await
     }
 
-    pub async fn list_all(&self) -> crate::Result<Vec<LinkWithRules>> {
-        Ok(Links::find()
-            .find_with_related(LinkRules)
-            .order_by_desc(links::Column::CreatedAt)
+    pub async fn list_all(&self) -> crate::Result<Vec<LinkDetails>> {
+        self.load(details_query().order_by_desc(links::Column::CreatedAt))
+            .await
+    }
+
+    async fn load(&self, query: DetailsQuery) -> crate::Result<Vec<LinkDetails>> {
+        let rows = query
             .order_by_asc(link_rules::Column::Position)
+            .consolidate()
             .all(self.db)
-            .await?)
+            .await?;
+
+        Ok(rows
+            .into_iter()
+            .map(|(link, owners, rules)| LinkDetails {
+                link,
+                owner: owners.into_iter().next(),
+                rules,
+            })
+            .collect())
     }
 
     pub async fn create(
         &self,
         link: links::ActiveModel,
         rules: Vec<link_rules::ActiveModel>,
-    ) -> crate::Result<LinkWithRules> {
+    ) -> crate::Result<LinkDetails> {
         let slug = active_slug(&link);
         let txn = self.db.begin().await?;
 
@@ -66,16 +82,21 @@ impl<'a> LinkRepository<'a> {
             .map_err(|err| slug_conflict(err, slug))?;
 
         let rules = insert_rules(&txn, model.id, rules).await?;
+        let owner = Users::find_by_id(&model.owner_id).one(&txn).await?;
         txn.commit().await?;
 
-        Ok((model, rules))
+        Ok(LinkDetails {
+            link: model,
+            owner,
+            rules,
+        })
     }
 
     pub async fn update(
         &self,
         link: links::ActiveModel,
         rules: Option<Vec<link_rules::ActiveModel>>,
-    ) -> crate::Result<LinkWithRules> {
+    ) -> crate::Result<LinkDetails> {
         let slug = active_slug(&link);
         let txn = self.db.begin().await?;
 
@@ -101,9 +122,14 @@ impl<'a> LinkRepository<'a> {
             }
         };
 
+        let owner = Users::find_by_id(&model.owner_id).one(&txn).await?;
         txn.commit().await?;
 
-        Ok((model, rules))
+        Ok(LinkDetails {
+            link: model,
+            owner,
+            rules,
+        })
     }
 
     pub async fn delete(&self, id: Uuid) -> crate::Result<DeleteResult> {
@@ -123,6 +149,13 @@ async fn insert_rules<C: ConnectionTrait>(
         saved.push(rule.insert(db).await?);
     }
     Ok(saved)
+}
+
+/// Links joined with their owner and rules in a single query
+fn details_query() -> DetailsQuery {
+    Links::find()
+        .find_also_related(Users)
+        .find_also_related(LinkRules)
 }
 
 fn active_slug(link: &links::ActiveModel) -> String {

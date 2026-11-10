@@ -2,3 +2,4 @@
 
 pub use super::link_rules::Entity as LinkRules;
 pub use super::links::Entity as Links;
+pub use super::users::Entity as Users;

@@ -33,10 +33,8 @@
     {:else if user}
         <p>Logged in as {user.name}</p>
         <a href="/auth/logout" onclick={resetAnalytics}>Log out</a>
-        {#if user.can_create}
-            <CreateLink onCreated={() => location.reload()} />
-        {/if}
-        <LinkList isAdmin={user.is_admin} canModify={user.can_create} />
+        <CreateLink onCreated={() => location.reload()} />
+        <LinkList isAdmin={user.is_admin} />
     {:else}
         <a href="/auth/login">Log in with ScottyLabs</a>
     {/if}

@@ -1,8 +1,9 @@
 pub mod error;
 pub mod links;
+pub mod users;
 
 pub use error::{Result, StoreError};
-pub use links::LinkWithRules;
+pub use links::LinkDetails;
 
 use sea_orm::DatabaseConnection;
 
@@ -21,5 +22,9 @@ impl Store {
 
     pub fn links(&self) -> links::LinkRepository<'_> {
         links::LinkRepository::new(&self.db)
+    }
+
+    pub fn users(&self) -> users::UserRepository<'_> {
+        users::UserRepository::new(&self.db)
     }
 }

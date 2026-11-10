@@ -120,6 +120,7 @@ impl Analytics {
         &self,
         request: &RequestInfo<'_>,
         link: &links::Model,
+        owner_name: Option<&str>,
         rule: Option<&link_rules::Model>,
         target: &str,
     ) {
@@ -129,7 +130,7 @@ impl Analytics {
 
         set(&mut event, "slug", &link.slug);
         set(&mut event, "link_id", link.id);
-        set(&mut event, "owner_name", &link.owner_name);
+        set(&mut event, "owner_name", owner_name);
         set(&mut event, "target_url", target);
         set(&mut event, "target_domain", domain(target));
         set(
@@ -149,6 +150,19 @@ impl Analytics {
     pub fn link_not_found(&self, request: &RequestInfo<'_>, slug: &str) -> Option<Event> {
         let mut event = self.visitor_event("link_not_found", request)?;
         set(&mut event, "slug", slug);
+        Some(event)
+    }
+
+    pub fn link_inactive(
+        &self,
+        request: &RequestInfo<'_>,
+        link: &links::Model,
+        reason: Inactive,
+    ) -> Option<Event> {
+        let mut event = self.visitor_event("link_inactive", request)?;
+        set(&mut event, "slug", &link.slug);
+        set(&mut event, "link_id", link.id);
+        set(&mut event, "reason", reason.as_str());
         Some(event)
     }
 
@@ -204,6 +218,34 @@ impl Analytics {
     fn insert_app_version(&self, event: &mut Event) {
         if let Some(version) = &self.app_version {
             set(event, "$app_version", version);
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+pub enum Inactive {
+    Paused,
+    Expired,
+}
+
+impl Inactive {
+    pub fn of(link: &links::Model, now: chrono::DateTime<chrono::Utc>) -> Option<Self> {
+        if link.paused {
+            Some(Self::Paused)
+        } else if link
+            .expires_at
+            .is_some_and(|expires_at| expires_at.and_utc() <= now)
+        {
+            Some(Self::Expired)
+        } else {
+            None
+        }
+    }
+
+    const fn as_str(self) -> &'static str {
+        match self {
+            Self::Paused => "paused",
+            Self::Expired => "expired",
         }
     }
 }

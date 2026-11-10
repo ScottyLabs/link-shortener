@@ -1,9 +1,11 @@
+use crate::error::ApiError;
 use axum::{
     Extension, Json,
-    extract::FromRequestParts,
+    extract::{FromRequestParts, State},
     http::{StatusCode, request::Parts},
 };
 use axum_oidc::{AdditionalClaims, OidcClaims, openidconnect};
+use link_shortener_store::Store;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -14,13 +16,11 @@ pub struct OidcConfig {
     pub client_secret: String,
     pub app_url: String,
     pub oauth_relay_url: String,
-    pub project_group: String,
     pub project_admin_group: String,
 }
 
-/// Keycloak group paths that authorize link management
+/// Keycloak group path whose members may manage every link
 pub struct AuthConfig {
-    pub project_group: String,
     pub project_admin_group: String,
 }
 
@@ -44,14 +44,6 @@ pub struct CurrentUser {
 impl CurrentUser {
     pub fn is_admin(&self, cfg: &AuthConfig) -> bool {
         self.groups.contains(&cfg.project_admin_group)
-    }
-
-    pub fn in_project_group(&self, cfg: &AuthConfig) -> bool {
-        self.groups.contains(&cfg.project_group)
-    }
-
-    pub fn can_create(&self, cfg: &AuthConfig) -> bool {
-        self.is_admin(cfg) || self.in_project_group(cfg)
     }
 }
 
@@ -87,21 +79,26 @@ where
 pub struct UserInfo {
     pub subject: String,
     pub name: String,
-    pub can_create: bool,
     pub is_admin: bool,
 }
 
+/// Returns the signed-in user and saves their current name
 #[utoipa::path(
     get,
     path = "/api/me",
     tag = "auth",
     responses((status = OK, body = UserInfo), (status = UNAUTHORIZED))
 )]
-pub async fn me(user: CurrentUser, Extension(auth): Extension<Arc<AuthConfig>>) -> Json<UserInfo> {
-    Json(UserInfo {
-        can_create: user.can_create(&auth),
+pub async fn me(
+    user: CurrentUser,
+    Extension(auth): Extension<Arc<AuthConfig>>,
+    State(store): State<Arc<Store>>,
+) -> Result<Json<UserInfo>, ApiError> {
+    store.users().upsert(&user.subject, &user.name).await?;
+
+    Ok(Json(UserInfo {
         is_admin: user.is_admin(&auth),
         name: user.name,
         subject: user.subject,
-    })
+    }))
 }

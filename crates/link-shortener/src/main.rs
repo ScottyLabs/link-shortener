@@ -43,7 +43,6 @@ async fn main() -> Result<()> {
         oauth_relay_url: secrets
             .oauth_relay_url
             .context("OAUTH_RELAY_URL must be set")?,
-        project_group: secrets.project_group.context("PROJECT_GROUP must be set")?,
         project_admin_group: secrets
             .project_admin_group
             .context("PROJECT_ADMIN_GROUP must be set")?,
