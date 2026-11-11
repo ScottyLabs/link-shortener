@@ -8,7 +8,7 @@ use axum::{
 };
 use chrono::{DateTime, Utc};
 use entity::{link_rules, links};
-use link_shortener_store::{LinkDetails, Store};
+use link_shortener_store::{LinkDetails, Store, StoreError};
 use rand::RngExt;
 use sea_orm::ActiveValue;
 use serde::{Deserialize, Deserializer, Serialize};
@@ -124,6 +124,8 @@ fn can_modify(user: &CurrentUser, auth: &AuthConfig, link: &links::Model) -> boo
     user.is_admin(auth) || link.owner_id == user.subject
 }
 
+const GENERATED_SLUG_RETRIES: usize = 4;
+
 fn generate_slug() -> String {
     const CHARSET: &[u8] = b"abcdefghijkmnpqrstuvwxyz23456789";
     let mut rng = rand::rng();
@@ -221,7 +223,8 @@ pub async fn create_link(
         ));
     }
 
-    let slug = match body.slug {
+    let generated = body.slug.is_none();
+    let mut slug = match body.slug {
         Some(slug) => {
             if !is_valid_slug(&slug) {
                 return Err(ApiError::BadRequest(INVALID_SLUG.into()));
@@ -235,17 +238,27 @@ pub async fn create_link(
 
     store.users().upsert(&user.subject, &user.name).await?;
 
-    let link = links::ActiveModel {
-        slug: ActiveValue::Set(slug),
-        target_url: ActiveValue::Set(body.target_url),
-        owner_id: ActiveValue::Set(user.subject.clone()),
-        paused: ActiveValue::Set(body.paused),
-        expires_at: ActiveValue::Set(body.expires_at.map(|expires_at| expires_at.naive_utc())),
-        ..Default::default()
+    let mut retries = 0;
+    let result = loop {
+        let link = links::ActiveModel {
+            slug: ActiveValue::Set(slug.clone()),
+            target_url: ActiveValue::Set(body.target_url.clone()),
+            owner_id: ActiveValue::Set(user.subject.clone()),
+            paused: ActiveValue::Set(body.paused),
+            expires_at: ActiveValue::Set(body.expires_at.map(|expires_at| expires_at.naive_utc())),
+            ..Default::default()
+        };
+
+        match store.links().create(link, rules.clone()).await {
+            Err(StoreError::SlugConflict(_)) if generated && retries < GENERATED_SLUG_RETRIES => {
+                retries += 1;
+                slug = generate_slug();
+            }
+            result => break result?,
+        }
     };
 
-    let rule_count = rules.len();
-    let result = store.links().create(link, rules).await?;
+    let rule_count = result.rules.len();
 
     analytics.link_changed(
         LinkChange::Created { rule_count },
