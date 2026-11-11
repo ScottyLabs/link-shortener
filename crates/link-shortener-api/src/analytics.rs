@@ -1,4 +1,7 @@
-use crate::{links::is_valid_slug, rules::contains_ci};
+use crate::{
+    links::is_valid_slug,
+    rules::{contains_ci, matching_crawler_tags},
+};
 use axum::{
     extract::FromRequestParts,
     http::{HeaderMap, HeaderName, Method, Uri, header, request::Parts},
@@ -319,6 +322,10 @@ impl<'a> RequestInfo<'a> {
     }
 
     fn insert_props(&self, event: &mut Event) {
+        // stops posthog-rs from reporting the server's OS
+        set(event, "$os", None::<&str>);
+        set(event, "$os_version", None::<&str>);
+
         if let Some(ip) = client_ip(self.headers) {
             set(event, "$ip", ip.to_string());
         }
@@ -326,6 +333,10 @@ impl<'a> RequestInfo<'a> {
             set(event, "$raw_user_agent", user_agent);
             if let Some(app) = in_app_browser(user_agent) {
                 set(event, "in_app_browser", app);
+            }
+            let tags = matching_crawler_tags(user_agent);
+            if !tags.is_empty() {
+                set(event, "crawler_tags", tags);
             }
         }
         if let Some(host) = self.host() {

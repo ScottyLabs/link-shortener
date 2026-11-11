@@ -120,7 +120,7 @@ impl TryFrom<LinkDetails> for LinkResponse {
 }
 
 /// Admins may modify any link, and everyone else only their own
-fn can_modify(user: &CurrentUser, auth: &AuthConfig, link: &links::Model) -> bool {
+pub(crate) fn can_modify(user: &CurrentUser, auth: &AuthConfig, link: &links::Model) -> bool {
     user.is_admin(auth) || link.owner_id == user.subject
 }
 

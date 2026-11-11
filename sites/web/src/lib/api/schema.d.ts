@@ -69,6 +69,23 @@ export interface paths {
     patch: operations["update_link"];
     trace?: never;
   };
+  "/api/links/{id}/stats": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Returns a link's visits over a range of time */
+    get: operations["link_stats"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/me": {
     parameters: {
       query?: never;
@@ -124,6 +141,35 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
+    Bar: {
+      /** Format: date */
+      start: string;
+      /** Format: int64 */
+      visits: number;
+    };
+    /** @description Visits per value, most first, each ignoring its own filter */
+    Breakdowns: {
+      browser: components["schemas"]["Count"][];
+      city: components["schemas"]["Count"][];
+      country: components["schemas"]["Count"][];
+      device_type: components["schemas"]["Count"][];
+      os: components["schemas"]["Count"][];
+      /** @description `utm_source`, such as `qr` for scans of the link's QR code */
+      source: components["schemas"]["Count"][];
+      /** @description `people`, `bots` and each crawler tag */
+      traffic: components["schemas"]["Count"][];
+    };
+    /**
+     * @description The span of time each bar covers
+     * @enum {string}
+     */
+    Bucket: "day" | "week" | "month";
+    Count: {
+      /** @description `None` when PostHog doesn't know it */
+      value?: string | null;
+      /** Format: int64 */
+      visits: number;
+    };
     CreateLinkRequest: {
       /** Format: date-time */
       expires_at?: string | null;
@@ -147,6 +193,16 @@ export interface components {
       target_url: string;
       /** Format: date-time */
       updated_at: string;
+    };
+    LinkStats: {
+      /** @description Oldest first, ending with the bar that holds today */
+      bars: components["schemas"]["Bar"][];
+      breakdowns: components["schemas"]["Breakdowns"];
+      bucket: components["schemas"]["Bucket"];
+      /** Format: int64 */
+      visitors: number;
+      /** Format: int64 */
+      visits: number;
     };
     /** @enum {string} */
     MatchKind: "platform" | "regex" | "crawler";
@@ -317,6 +373,45 @@ export interface operations {
         content: {
           "application/json": components["schemas"]["LinkResponse"];
         };
+      };
+    };
+  };
+  link_stats: {
+    parameters: {
+      query?: {
+        range?: "7d" | "30d" | "90d" | "all";
+        /** @description Any of `people` (the default), `bots` and crawler tags, or `all` */
+        traffic?: string[];
+        /** @description Any of the values from the breakdowns, with `unknown` for visits without one */
+        source?: string[];
+        device_type?: string[];
+        os?: string[];
+        browser?: string[];
+        country?: string[];
+        city?: string[];
+      };
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["LinkStats"];
+        };
+      };
+      /** @description Visit stats are not configured */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
     };
   };

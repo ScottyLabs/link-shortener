@@ -15,6 +15,7 @@ pub enum ApiError {
     Forbidden,
     BadRequest(String),
     Conflict(String),
+    Unavailable(String),
     Internal(anyhow::Error),
 }
 
@@ -25,6 +26,7 @@ impl IntoResponse for ApiError {
             ApiError::Forbidden => (StatusCode::FORBIDDEN, "forbidden".to_string()),
             ApiError::BadRequest(msg) => (StatusCode::BAD_REQUEST, msg),
             ApiError::Conflict(msg) => (StatusCode::CONFLICT, msg),
+            ApiError::Unavailable(msg) => (StatusCode::SERVICE_UNAVAILABLE, msg),
             ApiError::Internal(e) => {
                 tracing::error!("internal error: {:?}", e);
                 (

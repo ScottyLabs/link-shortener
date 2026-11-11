@@ -32,5 +32,31 @@ Visitor events use a hash of the visitor's IP address, host, and user agent as t
 | `fetch_site` | The `Sec-Fetch-Site` header |
 | `is_prefetch` | Whether the request was a prefetch |
 | `gpc` | Whether the visitor sent a Global Privacy Control signal |
+| `crawler_tags` | The [crawler-user-agents](https://github.com/ap-1/crawler-user-agents) tags of the crawler that sent the request, if it's a known crawler |
 
 Link changes and frontend events both use the user's OIDC subject as the distinct ID and show up under the same person in PostHog.
+
+## Visit stats
+
+```mermaid
+sequenceDiagram
+  participant v as visitor
+  participant o as link owner
+  participant s as server
+  participant c as crawler-user-agents
+  participant p as PostHog
+  v->>s: follows a link
+  s->>c: user agent
+  c-->>s: crawler tags, or none for a person
+  s->>p: link_visited with crawler_tags
+  Note over p: adds browser, OS, device type, and location
+  Note over v,p: later
+  o->>s: opens the Analytics tab
+  s->>p: query filtered on crawler_tags
+  p-->>s: visit counts
+  s-->>o: chart and breakdowns
+```
+
+When someone follows a link, the server looks up their user agent with [crawler-user-agents](https://github.com/ap-1/crawler-user-agents) and adds the tags of the matching crawler to its `link_visited` event as `crawler_tags`. Visits from the QR code on a link's page also carry `utm_source=qr`. PostHog's User Agent Populator and GeoIP transformations then add the browser, OS, device type, country, and city.
+
+The Analytics tab counts these events by querying PostHog. Visits recorded before the server started sending `crawler_tags` all count as people.

@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use link_shortener_api::{Analytics, OidcConfig};
+use link_shortener_api::{Analytics, OidcConfig, Stats};
 use link_shortener_store::Store;
 use sea_orm::Database;
 use sea_orm_migration::MigratorTrait;
@@ -66,8 +66,14 @@ async fn main() -> Result<()> {
         .await?,
     );
 
+    let stats = Arc::new(Stats::new(
+        std::env::var("POSTHOG_PERSONAL_API_KEY").ok(),
+        std::env::var("POSTHOG_PROJECT_ID").ok(),
+    ));
+
     let store = Arc::new(Store::new(db));
-    let app = link_shortener_api::router(store, sessions, oidc_config, analytics.clone()).await?;
+    let app =
+        link_shortener_api::router(store, sessions, oidc_config, analytics.clone(), stats).await?;
 
     let addr = format!("0.0.0.0:{port}");
     let listener = tokio::net::TcpListener::bind(&addr).await?;

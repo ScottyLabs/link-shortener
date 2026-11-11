@@ -13,8 +13,12 @@ const AP_MONTHS = [
   "Dec.",
 ];
 
+export function apMonthDay(date: Date): string {
+  return `${AP_MONTHS[date.getMonth()]} ${date.getDate()}`;
+}
+
 export function apDate(date: Date): string {
-  return `${AP_MONTHS[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+  return `${apMonthDay(date)}, ${date.getFullYear()}`;
 }
 
 export function shortUrl(slug: string): string {

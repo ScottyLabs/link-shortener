@@ -1,4 +1,5 @@
 <script lang="ts">
+    import "layerchart/core.css";
     import { setContext, tick } from "svelte";
     import { identify, initAnalytics, resetAnalytics } from "$lib/analytics";
     import { api } from "$lib/api/client";

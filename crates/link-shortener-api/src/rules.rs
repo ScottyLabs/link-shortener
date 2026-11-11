@@ -140,6 +140,16 @@ pub(crate) fn contains_ci(haystack: &str, needle: &str) -> bool {
             .any(|window| window.eq_ignore_ascii_case(needle))
 }
 
+pub(crate) fn matching_crawler_tags(user_agent: &str) -> BTreeSet<&'static str> {
+    crawler_user_agents::matching_crawlers(user_agent)
+        .flat_map(|crawler| crawler.tags.iter().map(String::as_str))
+        .collect()
+}
+
+pub(crate) fn is_crawler_tag(tag: &str) -> bool {
+    CRAWLER_TAGS.contains(tag)
+}
+
 fn compile_regex(pattern: &str) -> Result<Regex, regex::Error> {
     RegexBuilder::new(pattern)
         .case_insensitive(true)
@@ -163,7 +173,7 @@ pub fn validate_pattern(kind: MatchKind, pattern: &str) -> Result<(), String> {
             .map(|_| ())
             .map_err(|e| format!("invalid regex: {e}")),
         MatchKind::Crawler => {
-            if CRAWLER_TAGS.contains(pattern) {
+            if is_crawler_tag(pattern) {
                 Ok(())
             } else {
                 let known = CRAWLER_TAGS.iter().copied().collect::<Vec<_>>().join(", ");

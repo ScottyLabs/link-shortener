@@ -5,6 +5,7 @@ mod links;
 mod redirect;
 mod rules;
 pub mod sessions;
+mod stats;
 
 pub use analytics::Analytics;
 use analytics::RequestInfo;
@@ -12,6 +13,7 @@ pub use auth::OidcConfig;
 use auth::{AuthConfig, GroupClaims};
 use redirect::Outcome;
 use sessions::SessionStore;
+pub use stats::Stats;
 
 use anyhow::Context;
 use axum::{
@@ -102,6 +104,7 @@ pub async fn router(
     sessions: SessionStore,
     oidc_config: OidcConfig,
     analytics: Arc<Analytics>,
+    stats: Arc<Stats>,
 ) -> anyhow::Result<Router> {
     // local development serves the app over plain http
     let secure = Url::parse(&oidc_config.app_url)
@@ -175,6 +178,7 @@ pub async fn router(
         .routes(utoipa_axum::routes!(links::create_link))
         .routes(utoipa_axum::routes!(links::update_link))
         .routes(utoipa_axum::routes!(links::delete_link))
+        .routes(utoipa_axum::routes!(stats::link_stats))
         .routes(utoipa_axum::routes!(rules::crawler_tags))
         .routes(utoipa_axum::routes!(auth::me))
         .routes(utoipa_axum::routes!(health))
@@ -188,6 +192,7 @@ pub async fn router(
         .layer(TraceLayer::new_for_http())
         .layer(Extension(auth_config))
         .layer(Extension(analytics.clone()))
+        .layer(Extension(stats))
         .with_state(store.clone())
         .split_for_parts();
 
