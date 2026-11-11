@@ -33,7 +33,10 @@ use link_shortener_store::Store;
 use serde::Serialize;
 use std::sync::Arc;
 use tower::{ServiceBuilder, ServiceExt};
-use tower_http::{services::ServeDir, trace::TraceLayer};
+use tower_http::{
+    services::{ServeDir, ServeFile},
+    trace::TraceLayer,
+};
 use tower_sessions::{
     Expiry, Session, SessionManagerLayer,
     cookie::{SameSite, time::Duration},
@@ -199,9 +202,12 @@ pub async fn router(
         );
 
     // Serve the built SPA in prod when STATIC_DIR is set, falling back to slug redirects
-    let serve_dir = std::env::var("STATIC_DIR")
-        .ok()
-        .map(|dir| ServeDir::new(dir).append_index_html_on_directories(true));
+    let serve_dir = std::env::var("STATIC_DIR").ok().map(|dir| {
+        let index = std::path::Path::new(&dir).join("index.html");
+        ServeDir::new(dir)
+            .append_index_html_on_directories(true)
+            .not_found_service(ServeFile::new(index))
+    });
     let app = router
         .fallback(move |State(store): State<Arc<Store>>, req: Request| {
             let serve_dir = serve_dir.clone();

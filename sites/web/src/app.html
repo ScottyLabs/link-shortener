@@ -4,9 +4,40 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Link Shortener</title>
+
+    <!-- https://webkilt.andrew.cmu.edu/install.html#apps -->
+    <!-- CMU's template -->
+    <link
+      href="https://fonts.googleapis.com/css?family=Open+Sans:300,300italic,400,400italic,600,700,700italic"
+      rel="stylesheet"
+    />
+    <link
+      href="https://www.cmu.edu/common/standard-v6/css/main.6.7.min.css"
+      media="screen"
+      rel="stylesheet"
+    />
+    <link
+      href="https://www.cmu.edu/common/standard-v6/css/print.min.css"
+      media="print"
+      rel="stylesheet"
+    />
+    <link href="https://www.cmu.edu/favicon.ico" rel="icon" />
+    <link href="https://www.cmu.edu/favicon-152.png" rel="apple-touch-icon-precomposed" />
+    <meta content="#9f0000" name="msapplication-TileColor" />
+    <meta content="https://www.cmu.edu/favicon-144.png" name="msapplication-TileImage" />
+    <!-- Carnegie Mellon Web Kilt -->
+    <link
+      href="https://cdn.jsdelivr.net/gh/cmu-web/cmu-web-kilt@0.4.2/css/cmu-cms.css"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdn.jsdelivr.net/gh/cmu-web/cmu-web-kilt@0.4.2/css/cmu-app.css"
+      rel="stylesheet"
+    />
+
     %sveltekit.head%
   </head>
-  <body data-sveltekit-preload-data="hover">
-    <div style="display: contents">%sveltekit.body%</div>
+  <body class="no-js cmu-app" data-sveltekit-preload-data="hover">
+    <div id="container">%sveltekit.body%</div>
   </body>
 </html>
