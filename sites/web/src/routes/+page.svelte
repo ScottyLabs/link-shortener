@@ -90,16 +90,14 @@
     <div class="content">
         <div>
             <p class="cmu-lead">Sign in to create and manage {location.host} links.</p>
-            <p><a class="btn" href="/auth/login">Sign In</a></p>
+            <div class="cmu-cta-row">
+                <a class="btn" href="/auth/login">Sign In</a>
+            </div>
         </div>
     </div>
 {/if}
 
 <style>
-    :global(#content) > div.content:first-child {
-        padding-top: 1em;
-    }
-
     .create-panel {
         margin: 0 0 2em;
         padding: 1.5em;

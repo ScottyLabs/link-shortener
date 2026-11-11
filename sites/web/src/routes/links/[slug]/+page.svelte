@@ -112,7 +112,9 @@
     <div class="content">
         <div>
             <p class="cmu-lead">Sign in to manage this link.</p>
-            <p><a class="btn" href="/auth/login">Sign In</a></p>
+            <div class="cmu-cta-row">
+                <a class="btn" href="/auth/login">Sign In</a>
+            </div>
         </div>
     </div>
 {:else if loadError}
@@ -122,10 +124,14 @@
         </div>
     </div>
 {:else if loaded && !link}
+    <!-- https://webkilt.andrew.cmu.edu/messages.html#errors -->
     <div class="content">
         <div>
-            <p class="cmu-lead">You don't have a link at {shortLabel(page.params.slug ?? "")}.</p>
-            <p><a href="/">See your links</a></p>
+            <h1>Not Found</h1>
+            <p class="cmu-lead">You don't have a link called {page.params.slug}.</p>
+            <div class="cmu-cta-row">
+                <a class="btn" href="/">See Your Links</a>
+            </div>
         </div>
     </div>
 {:else if link}

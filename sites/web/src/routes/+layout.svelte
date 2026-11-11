@@ -124,6 +124,10 @@
         flex: 1;
     }
 
+    :global(#content > div.content:first-child) {
+        padding-top: 1em;
+    }
+
     .roof .menu-btn {
         top: 50%;
         margin-top: 0;
